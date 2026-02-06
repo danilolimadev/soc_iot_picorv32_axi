@@ -2,6 +2,7 @@ module axi_interconnect (
     input  wire clk,
     input  wire resetn,
 
+    // Master
     input  wire [31:0] m_awaddr,
     input  wire        m_awvalid,
     output wire        m_awready,
@@ -12,6 +13,7 @@ module axi_interconnect (
     output wire [1:0]  m_bresp,
     output wire        m_bvalid,
     input  wire        m_bready,
+
     input  wire [31:0] m_araddr,
     input  wire        m_arvalid,
     output wire        m_arready,
@@ -20,6 +22,7 @@ module axi_interconnect (
     output wire        m_rvalid,
     input  wire        m_rready,
 
+    // RAM
     output wire [31:0] ram_awaddr,
     output wire        ram_awvalid,
     input  wire        ram_awready,
@@ -38,6 +41,7 @@ module axi_interconnect (
     input  wire        ram_rvalid,
     output wire        ram_rready,
 
+    // GPIO
     output wire [11:0] gpio_awaddr,
     output wire        gpio_awvalid,
     input  wire        gpio_awready,
@@ -56,6 +60,7 @@ module axi_interconnect (
     input  wire        gpio_rvalid,
     output wire        gpio_rready,
 
+    // UART
     output wire [11:0] uart_awaddr,
     output wire        uart_awvalid,
     input  wire        uart_awready,
@@ -74,6 +79,7 @@ module axi_interconnect (
     input  wire        uart_rvalid,
     output wire        uart_rready,
 
+    // SPI
     output wire [11:0] spi_awaddr,
     output wire        spi_awvalid,
     input  wire        spi_awready,
@@ -92,6 +98,7 @@ module axi_interconnect (
     input  wire        spi_rvalid,
     output wire        spi_rready,
 
+    // I2C
     output wire [11:0] i2c_awaddr,
     output wire        i2c_awvalid,
     input  wire        i2c_awready,
@@ -110,6 +117,7 @@ module axi_interconnect (
     input  wire        i2c_rvalid,
     output wire        i2c_rready,
 
+    // TIMER
     output wire [11:0] timer_awaddr,
     output wire        timer_awvalid,
     input  wire        timer_awready,
@@ -136,19 +144,30 @@ module axi_interconnect (
     localparam I2C_BASE   = 32'h4000_0000;
     localparam TIMER_BASE = 32'h5000_0000;
 
-    wire sel_ram   = (m_awaddr[31:12] == RAM_BASE[31:12])   || (m_araddr[31:12] == RAM_BASE[31:12]);
-    wire sel_gpio  = (m_awaddr[31:12] == GPIO_BASE[31:12])  || (m_araddr[31:12] == GPIO_BASE[31:12]);
-    wire sel_uart  = (m_awaddr[31:12] == UART_BASE[31:12])  || (m_araddr[31:12] == UART_BASE[31:12]);
-    wire sel_spi   = (m_awaddr[31:12] == SPI_BASE[31:12])   || (m_araddr[31:12] == SPI_BASE[31:12]);
-    wire sel_i2c   = (m_awaddr[31:12] == I2C_BASE[31:12])   || (m_araddr[31:12] == I2C_BASE[31:12]);
-    wire sel_timer = (m_awaddr[31:12] == TIMER_BASE[31:12]) || (m_araddr[31:12] == TIMER_BASE[31:12]);
+    // Seleção por canal (NÃO misturar AW com AR)
+    wire w_sel_ram   = (m_awaddr[31:12] == RAM_BASE[31:12]);
+    wire w_sel_gpio  = (m_awaddr[31:12] == GPIO_BASE[31:12]);
+    wire w_sel_uart  = (m_awaddr[31:12] == UART_BASE[31:12]);
+    wire w_sel_spi   = (m_awaddr[31:12] == SPI_BASE[31:12]);
+    wire w_sel_i2c   = (m_awaddr[31:12] == I2C_BASE[31:12]);
+    wire w_sel_timer = (m_awaddr[31:12] == TIMER_BASE[31:12]);
 
-    assign ram_awvalid   = m_awvalid && sel_ram;
-    assign gpio_awvalid  = m_awvalid && sel_gpio;
-    assign uart_awvalid  = m_awvalid && sel_uart;
-    assign spi_awvalid   = m_awvalid && sel_spi;
-    assign i2c_awvalid   = m_awvalid && sel_i2c;
-    assign timer_awvalid = m_awvalid && sel_timer;
+    wire r_sel_ram   = (m_araddr[31:12] == RAM_BASE[31:12]);
+    wire r_sel_gpio  = (m_araddr[31:12] == GPIO_BASE[31:12]);
+    wire r_sel_uart  = (m_araddr[31:12] == UART_BASE[31:12]);
+    wire r_sel_spi   = (m_araddr[31:12] == SPI_BASE[31:12]);
+    wire r_sel_i2c   = (m_araddr[31:12] == I2C_BASE[31:12]);
+    wire r_sel_timer = (m_araddr[31:12] == TIMER_BASE[31:12]);
+
+    // -------------------------
+    // Write address
+    // -------------------------
+    assign ram_awvalid   = m_awvalid && w_sel_ram;
+    assign gpio_awvalid  = m_awvalid && w_sel_gpio;
+    assign uart_awvalid  = m_awvalid && w_sel_uart;
+    assign spi_awvalid   = m_awvalid && w_sel_spi;
+    assign i2c_awvalid   = m_awvalid && w_sel_i2c;
+    assign timer_awvalid = m_awvalid && w_sel_timer;
 
     assign ram_awaddr   = m_awaddr;
     assign gpio_awaddr  = m_awaddr[11:0];
@@ -157,12 +176,22 @@ module axi_interconnect (
     assign i2c_awaddr   = m_awaddr[11:0];
     assign timer_awaddr = m_awaddr[11:0];
 
-    assign ram_wdata   = ram_bvalid ? m_wdata : 0;
-    assign gpio_wdata  = gpio_bvalid ? m_wdata : 0;
-    assign uart_wdata  = uart_bvalid ? m_wdata : 0;
-    assign spi_wdata   = spi_bvalid ? m_wdata : 0;
-    assign i2c_wdata   = i2c_bvalid ? m_wdata : 0;
-    assign timer_wdata = timer_bvalid ? m_wdata : 0;
+    // -------------------------
+    // Write data (NUNCA gatear por BVALID)
+    // -------------------------
+    assign ram_wvalid   = m_wvalid && w_sel_ram;
+    assign gpio_wvalid  = m_wvalid && w_sel_gpio;
+    assign uart_wvalid  = m_wvalid && w_sel_uart;
+    assign spi_wvalid   = m_wvalid && w_sel_spi;
+    assign i2c_wvalid   = m_wvalid && w_sel_i2c;
+    assign timer_wvalid = m_wvalid && w_sel_timer;
+
+    assign ram_wdata   = m_wdata;
+    assign gpio_wdata  = m_wdata;
+    assign uart_wdata  = m_wdata;
+    assign spi_wdata   = m_wdata;
+    assign i2c_wdata   = m_wdata;
+    assign timer_wdata = m_wdata;
 
     assign ram_wstrb   = m_wstrb;
     assign gpio_wstrb  = m_wstrb;
@@ -171,13 +200,22 @@ module axi_interconnect (
     assign i2c_wstrb   = m_wstrb;
     assign timer_wstrb = m_wstrb;
 
-    assign ram_wvalid   = m_wvalid && sel_ram;
-    assign gpio_wvalid  = m_wvalid && sel_gpio;
-    assign uart_wvalid  = m_wvalid && sel_uart;
-    assign spi_wvalid   = m_wvalid && sel_spi;
-    assign i2c_wvalid   = m_wvalid && sel_i2c;
-    assign timer_wvalid = m_wvalid && sel_timer;
+    // ready do master (baseado na seleção write)
+    assign m_awready = (w_sel_ram   && ram_awready)  ||
+                       (w_sel_gpio  && gpio_awready) ||
+                       (w_sel_uart  && uart_awready) ||
+                       (w_sel_spi   && spi_awready)  ||
+                       (w_sel_i2c   && i2c_awready)  ||
+                       (w_sel_timer && timer_awready);
 
+    assign m_wready  = (w_sel_ram   && ram_wready)  ||
+                       (w_sel_gpio  && gpio_wready) ||
+                       (w_sel_uart  && uart_wready) ||
+                       (w_sel_spi   && spi_wready)  ||
+                       (w_sel_i2c   && i2c_wready)  ||
+                       (w_sel_timer && timer_wready);
+
+    // bready broadcast (ok em single outstanding)
     assign ram_bready   = m_bready;
     assign gpio_bready  = m_bready;
     assign uart_bready  = m_bready;
@@ -185,40 +223,25 @@ module axi_interconnect (
     assign i2c_bready   = m_bready;
     assign timer_bready = m_bready;
 
-    assign m_awready = (sel_ram   && ram_awready)  ||
-                       (sel_gpio  && gpio_awready) ||
-                       (sel_uart  && uart_awready) ||
-                       (sel_spi   && spi_awready)  ||
-                       (sel_i2c   && i2c_awready)  ||
-                       (sel_timer && timer_awready);
+    // mux de bvalid/bresp pelo próprio bvalid (mais robusto que sel)
+    assign m_bvalid = ram_bvalid | gpio_bvalid | uart_bvalid | spi_bvalid | i2c_bvalid | timer_bvalid;
 
-    assign m_wready  = (sel_ram   && ram_wready)  ||
-                       (sel_gpio  && gpio_wready) ||
-                       (sel_uart  && uart_wready) ||
-                       (sel_spi   && spi_wready)  ||
-                       (sel_i2c   && i2c_wready)  ||
-                       (sel_timer && timer_wready);
+    assign m_bresp  = ram_bvalid   ? ram_bresp   :
+                      gpio_bvalid  ? gpio_bresp  :
+                      uart_bvalid  ? uart_bresp  :
+                      spi_bvalid   ? spi_bresp   :
+                      i2c_bvalid   ? i2c_bresp   :
+                      timer_bvalid ? timer_bresp : 2'b00;
 
-    assign m_bvalid  = (sel_ram   && ram_bvalid)  ||
-                       (sel_gpio  && gpio_bvalid) ||
-                       (sel_uart  && uart_bvalid) ||
-                       (sel_spi   && spi_bvalid)  ||
-                       (sel_i2c   && i2c_bvalid)  ||
-                       (sel_timer && timer_bvalid);
-
-    assign m_bresp = (sel_ram   ? ram_bresp   :
-                      sel_gpio  ? gpio_bresp  :
-                      sel_uart  ? uart_bresp  :
-                      sel_spi   ? spi_bresp   :
-                      sel_i2c   ? i2c_bresp   :
-                      sel_timer ? timer_bresp : 2'b00);
-
-    assign ram_arvalid   = m_arvalid && sel_ram;
-    assign gpio_arvalid  = m_arvalid && sel_gpio;
-    assign uart_arvalid  = m_arvalid && sel_uart;
-    assign spi_arvalid   = m_arvalid && sel_spi;
-    assign i2c_arvalid   = m_arvalid && sel_i2c;
-    assign timer_arvalid = m_arvalid && sel_timer;
+    // -------------------------
+    // Read address/data
+    // -------------------------
+    assign ram_arvalid   = m_arvalid && r_sel_ram;
+    assign gpio_arvalid  = m_arvalid && r_sel_gpio;
+    assign uart_arvalid  = m_arvalid && r_sel_uart;
+    assign spi_arvalid   = m_arvalid && r_sel_spi;
+    assign i2c_arvalid   = m_arvalid && r_sel_i2c;
+    assign timer_arvalid = m_arvalid && r_sel_timer;
 
     assign ram_araddr   = m_araddr;
     assign gpio_araddr  = m_araddr[11:0];
@@ -227,6 +250,13 @@ module axi_interconnect (
     assign i2c_araddr   = m_araddr[11:0];
     assign timer_araddr = m_araddr[11:0];
 
+    assign m_arready = (r_sel_ram   && ram_arready)  ||
+                       (r_sel_gpio  && gpio_arready) ||
+                       (r_sel_uart  && uart_arready) ||
+                       (r_sel_spi   && spi_arready)  ||
+                       (r_sel_i2c   && i2c_arready)  ||
+                       (r_sel_timer && timer_arready);
+
     assign ram_rready   = m_rready;
     assign gpio_rready  = m_rready;
     assign uart_rready  = m_rready;
@@ -234,32 +264,20 @@ module axi_interconnect (
     assign i2c_rready   = m_rready;
     assign timer_rready = m_rready;
 
-    assign m_arready = (sel_ram   && ram_arready)  ||
-                       (sel_gpio  && gpio_arready) ||
-                       (sel_uart  && uart_arready) ||
-                       (sel_spi   && spi_arready)  ||
-                       (sel_i2c   && i2c_arready)  ||
-                       (sel_timer && timer_arready);
+    assign m_rvalid = ram_rvalid | gpio_rvalid | uart_rvalid | spi_rvalid | i2c_rvalid | timer_rvalid;
 
-    assign m_rvalid = (sel_ram   && ram_rvalid)  ||
-                      (sel_gpio  && gpio_rvalid) ||
-                      (sel_uart  && uart_rvalid) ||
-                      (sel_spi   && spi_rvalid)  ||
-                      (sel_i2c   && i2c_rvalid)  ||
-                      (sel_timer && timer_rvalid);
+    assign m_rdata  = ram_rvalid   ? ram_rdata   :
+                      gpio_rvalid  ? gpio_rdata  :
+                      uart_rvalid  ? uart_rdata  :
+                      spi_rvalid   ? spi_rdata   :
+                      i2c_rvalid   ? i2c_rdata   :
+                      timer_rvalid ? timer_rdata : 32'hDEAD_BEEF;
 
-    assign m_rdata = (sel_ram   ? ram_rdata   :
-                      sel_gpio  ? gpio_rdata  :
-                      sel_uart  ? uart_rdata  :
-                      sel_spi   ? spi_rdata   :
-                      sel_i2c   ? i2c_rdata   :
-                      sel_timer ? timer_rdata : 32'hDEAD_BEEF);
-
-    assign m_rresp = (sel_ram   ? ram_rresp   :
-                      sel_gpio  ? gpio_rresp  :
-                      sel_uart  ? uart_rresp  :
-                      sel_spi   ? spi_rresp   :
-                      sel_i2c   ? i2c_rresp   :
-                      sel_timer ? timer_rresp : 2'b00);
+    assign m_rresp  = ram_rvalid   ? ram_rresp   :
+                      gpio_rvalid  ? gpio_rresp  :
+                      uart_rvalid  ? uart_rresp  :
+                      spi_rvalid   ? spi_rresp   :
+                      i2c_rvalid   ? i2c_rresp   :
+                      timer_rvalid ? timer_rresp : 2'b00;
 
 endmodule
