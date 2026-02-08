@@ -133,6 +133,31 @@ module axi_gpio_tb;
         // Leitura do GPIO
         axi_read(12'h000);
 
+        // --- Teste 3: Escrita Parcial (Strobe) ---
+       @(posedge clk);
+        s_axi_awaddr  <= 12'h000;
+        s_axi_awvalid <= 1'b1;
+        s_axi_wdata   <= 32'hFFFFFFFF;
+        s_axi_wstrb   <= 4'b0011; // Apenas bytes inferiores
+        s_axi_wvalid  <= 1'b1;
+        s_axi_bready  <= 1'b1;
+       
+        wait(s_axi_awready);
+        wait(s_axi_wready);
+        @(posedge clk);
+        s_axi_awvalid <= 1'b0;
+        s_axi_wvalid  <= 1'b0;
+        wait(s_axi_bvalid);
+        @(posedge clk);
+        s_axi_bready  <= 1'b0;
+       
+        // Resultado esperado: 32'hAAAAFFFF (Bytes 0 e 1 mudaram, 2 e 3 mantiveram)
+        #10;
+        $display("[STRB]  Resultado esperado: 0xAAAAFFFF, Obtido: 0x%h", gpio_out);
+
+        // --- Teste 4: Endereço Inválido
+        axi_read(12'h004);
+
         
         #100;
         $display("Simulação Finalizada.");
