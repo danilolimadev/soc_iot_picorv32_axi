@@ -457,7 +457,11 @@ module soc_top (
         .s_axi_rdata(spi_rdata),
         .s_axi_rresp(spi_rresp),
         .s_axi_rvalid(spi_rvalid),
-        .s_axi_rready(spi_rready)
+        .s_axi_rready(spi_rready),
+        .spi_sck(spi_sck),
+        .spi_mosi(spi_mosi),
+        .spi_miso(spi_miso),
+        .spi_cs(spi_cs)
     );
 
     axi_i2c i2c_inst (

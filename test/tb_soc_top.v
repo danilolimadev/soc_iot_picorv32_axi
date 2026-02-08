@@ -145,7 +145,7 @@ module soc_tb;
     // =========================================================================
     initial begin
         wait(resetn);
-        #200000;
+        #500000;
         $display("\n[TB] Fim da simulação.\n");
         $stop;
     end
