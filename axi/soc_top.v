@@ -1,26 +1,26 @@
 module soc_top (
-    input  wire clk,
-    input  wire resetn,
+    input  wire        clk,
+    input  wire        resetn,
+
+    // Debug
+    output wire        trap,
+    output wire [31:0] gpio_out,
+    output wire        timer_irq,
 
     // UART
-    output wire uart_tx,
-    input  wire uart_rx,
+    output wire        uart_tx,
+    input  wire        uart_rx,
 
     // SPI
-    output wire spi_mosi,
-    input  wire spi_miso,
-    output wire spi_sck,
-    output wire spi_cs,
+    output wire        spi_mosi,
+    input  wire        spi_miso,
+    output wire        spi_sck,
+    output wire        spi_cs,
 
     // I2C
-    input  wire i2c_sda, //não usado
-    input  wire i2c_scl  //não usado
+    inout  wire        i2c_sda,
+    inout  wire        i2c_scl
 );
-
-    wire trap;
-
-    // timer IRQ is produced by the timer inside the SoC
-    wire timer_irq;
 
     wire        mem_axi_awvalid;
     wire         mem_axi_awready;
@@ -147,7 +147,6 @@ module soc_top (
     wire [1:0]  gpio_rresp;
     wire        gpio_rvalid;
     wire        gpio_rready;
-    wire [31:0] gpio_out;
 
     // Sinais entre interconector e UART
     wire [11:0] uart_awaddr;
@@ -481,7 +480,10 @@ module soc_top (
         .s_axi_rdata(i2c_rdata),
         .s_axi_rresp(i2c_rresp),
         .s_axi_rvalid(i2c_rvalid),
-        .s_axi_rready(i2c_rready)
+        .s_axi_rready(i2c_rready),
+         // 🔽 I2C físico
+        .i2c_sda(i2c_sda),
+        .i2c_scl(i2c_scl)
     );
 
 

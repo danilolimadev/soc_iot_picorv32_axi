@@ -14,7 +14,7 @@ module soc_tb;
 
     initial begin
         clk = 0;
-        forever #10 clk = ~clk; // Clock de 50 MHz
+        forever #10 clk = ~clk; // 50 MHz
     end
 
     initial begin
@@ -24,35 +24,38 @@ module soc_tb;
     end
 
     // ===============================
-    // UART Signals
+    // UART
     // ===============================
     wire uart_tx;
     reg  uart_rx;
 
-    initial uart_rx = 1'b1; // linha idle
+    initial uart_rx = 1'b1; // idle
 
     // ===============================
-    // SPI Signals
+    // SPI
     // ===============================
     wire spi_sck;
     wire spi_mosi;
     wire spi_miso;
     wire spi_cs;
 
-    assign spi_miso = 1'b0; // sem resposta de slave externo (loopback pode ser adicionado)
+    assign spi_miso = 1'b0; // slave dummy
 
     // ===============================
-    // I2C Signals
+    // I2C (open-drain)
     // ===============================
     wire i2c_sda;
     wire i2c_scl;
+
     pullup(i2c_sda);
     pullup(i2c_scl);
 
     // ===============================
-    // IRQ (Timer)
+    // Debug / GPIO / IRQ
     // ===============================
-    //wire timer_irq;
+    wire [31:0] gpio_out;
+    wire        trap;
+    wire        timer_irq;
 
     // ===============================
     // Instância do SoC
@@ -60,6 +63,11 @@ module soc_tb;
     soc_top uut (
         .clk(clk),
         .resetn(resetn),
+
+        // Debug
+        .trap(trap),
+        .gpio_out(gpio_out),
+        .timer_irq(timer_irq),
 
         // UART
         .uart_tx(uart_tx),
@@ -74,63 +82,76 @@ module soc_tb;
         // I2C
         .i2c_sda(i2c_sda),
         .i2c_scl(i2c_scl)
-
-        // IRQ do timer
-        //.timer_irq(timer_irq)
     );
 
     // =========================================================================
-    // Monitoramento da UART TX (decodifica caracteres ASCII)
+    // Monitoramento da UART TX (ASCII)
     // =========================================================================
     reg [9:0] uart_shift;
-    integer bit_count = 0;
-    realtime baud_period = 400;//8680; // ~115200 baud @50MHz
+    integer bit_count;
+    realtime baud_period = 8680; // ~115200 baud @50MHz
 
     initial begin
         wait(resetn);
         $display("\n=== Simulação Iniciada ===\n");
+
         forever begin
             @(negedge uart_tx); // start bit
             #(baud_period/2);
-            uart_shift = 0;
+
             for (bit_count = 0; bit_count < 10; bit_count = bit_count + 1) begin
                 uart_shift[bit_count] = uart_tx;
                 #(baud_period);
             end
-            if (uart_shift[0] == 0 && uart_shift[9] == 1) begin
+
+            if (uart_shift[0] == 1'b0 && uart_shift[9] == 1'b1) begin
                 $write("%c", uart_shift[8:1]);
-                $display(uart_shift[8:1]);
                 $fflush();
             end
         end
     end
 
     // =========================================================================
-    // Simulação da interrupção (IRQ)
+    // Monitoramento de GPIO
     // =========================================================================
-    initial begin
-        wait(resetn);
-        #2000;
-        $display("\n[TB] Forçando interrupção por Timer...");
-        force uut.timer_irq = 1'b1;
-        #1000;
-        release uut.timer_irq;
+    always @(gpio_out) begin
+        $display("[TB] GPIO_OUT = 0x%08X @ %0t", gpio_out, $time);
     end
 
     // =========================================================================
-    // Simulação de periféricos SPI e I2C
+    // Monitoramento de IRQ do Timer
     // =========================================================================
-    initial begin
-        wait(resetn);
-        #5000;
-        $display("\n[TB] Teste SPI/I2C em andamento...");
-        #1000;
-        $display("[TB] Teste finalizado.\n");
+    always @(posedge timer_irq) begin
+        $display("[TB] >>> TIMER IRQ ASSERTED @ %0t", $time);
+    end
+
+    // =========================================================================
+    // Monitoramento de TRAP (erro fatal do CPU)
+    // =========================================================================
+    always @(posedge trap) begin
+        $display("\n[TB] !!! TRAP DETECTADO — CPU PAROU @ %0t !!!\n", $time);
         $stop;
     end
 
     // =========================================================================
-    // Dump de sinais para GTKWave
+    // Observação de I2C (nível dos pinos)
+    // =========================================================================
+    always @(i2c_sda or i2c_scl) begin
+        $display("[TB][I2C] SDA=%b SCL=%b @ %0t", i2c_sda, i2c_scl, $time);
+    end
+
+    // =========================================================================
+    // Tempo total de simulação
+    // =========================================================================
+    initial begin
+        wait(resetn);
+        #200000;
+        $display("\n[TB] Fim da simulação.\n");
+        $stop;
+    end
+
+    // =========================================================================
+    // Dump GTKWave
     // =========================================================================
     initial begin
         $dumpfile("soc_tb.vcd");
