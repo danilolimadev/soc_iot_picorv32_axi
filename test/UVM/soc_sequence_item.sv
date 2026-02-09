@@ -6,15 +6,42 @@
 
     class soc_sequence_item extends uvm_sequence_item;
         // TODO: quais valores serão enviados
-        rand [WIDTH-1:0] init_value;
+        // Debug
+        bit       trap;
+        shortint  gpio_out; //?
+        bit       timer_irq;
+
+        // UART
+        bit       uart_tx;
+        rand bit  uart_rx;
+
+        // SPI
+        bit       spi_mosi;
+        rand bit  spi_miso;
+        bit       spi_sck;
+        bit       spi_cs;
+
+        // I2C
+        rand bit  i2c_sda;
+        rand bit  i2c_scl;
         
         function new(string name);
             super.new(name);
         endfunction : new
         
-        function bit [WIDTH-1:0] get_random_init_value();
+        function bit get_random_i2c_value();
             assert(this.randomize());
-            return this.init_value;
+            return this.i2c_sda;
+        endfunction
+
+        function bit get_random_spi_value();
+            assert(this.randomize());
+            return this.spi_miso;
+        endfunction
+
+        function bit get_random_uart_value();
+            assert(this.randomize());
+            return this.uart_rx;
         endfunction
 
     endclass : soc_sequence_item
