@@ -32,42 +32,59 @@ module axi_spi (
     output reg         spi_cs
 );
 
-    // ---------------- AXI REGISTERS ----------------
-    reg        start_req;
+    // ============================================================
+    // REGISTERS
+    // ============================================================
+    reg        start_enable;   // habilita SPI
+    reg        tx_valid;       // dado pendente
     reg [7:0]  txdata;
     reg [7:0]  rxdata;
     reg        spi_busy;
 
-    // ---------------- AXI WRITE ----------------
+    // AXI responses OKAY
+    always @(*) begin
+        s_axi_bresp = 2'b00;
+        s_axi_rresp = 2'b00;
+    end
+
+    // ============================================================
+    // AXI WRITE (TRAVA SÓ QUANDO SPI ATIVO)
+    // ============================================================
     always @(posedge clk) begin
         if (!resetn) begin
             s_axi_awready <= 0;
             s_axi_wready  <= 0;
             s_axi_bvalid  <= 0;
-            start_req     <= 0;
+            start_enable  <= 0;
+            tx_valid      <= 0;
             txdata        <= 0;
         end else begin
-            s_axi_awready <= s_axi_awvalid && !s_axi_bvalid;
-            s_axi_wready  <= s_axi_wvalid  && !s_axi_bvalid;
+            s_axi_awready <= s_axi_awvalid && !s_axi_bvalid && !spi_busy;
+            s_axi_wready  <= s_axi_wvalid  && !s_axi_bvalid && !spi_busy;
 
             if (s_axi_awready && s_axi_wready) begin
                 case (s_axi_awaddr[5:2])
-                    4'h0: start_req <= s_axi_wdata[0];
-                    4'h1: txdata    <= s_axi_wdata[7:0];
+                    4'h0: start_enable <= s_axi_wdata[0];   // START
+                    4'h1: begin                            // TXDATA
+                        txdata   <= s_axi_wdata[7:0];
+                        tx_valid <= 1'b1;
+                    end
                 endcase
-                s_axi_bvalid <= 1;
+                s_axi_bvalid <= 1'b1;
             end
 
-            if (s_axi_bvalid && s_axi_bready) begin
-                s_axi_bvalid <= 0;
-            end
+            if (s_axi_bvalid && s_axi_bready)
+                s_axi_bvalid <= 1'b0;
 
+            // consome dado quando SPI inicia
             if (spi_busy)
-                start_req <= 0;
+                tx_valid <= 1'b0;
         end
     end
 
-    // ---------------- AXI READ ----------------
+    // ============================================================
+    // AXI READ
+    // ============================================================
     always @(posedge clk) begin
         if (!resetn) begin
             s_axi_arready <= 0;
@@ -78,26 +95,28 @@ module axi_spi (
 
             if (s_axi_arready) begin
                 case (s_axi_araddr[5:2])
-                    4'h0: s_axi_rdata <= {30'd0, spi_busy, start_req};
+                    4'h0: s_axi_rdata <= {29'd0, tx_valid, spi_busy, start_enable};
                     4'h1: s_axi_rdata <= {24'd0, txdata};
                     4'h2: s_axi_rdata <= {24'd0, rxdata};
                     default: s_axi_rdata <= 32'hDEADBEEF;
                 endcase
-                s_axi_rvalid <= 1;
+                s_axi_rvalid <= 1'b1;
             end
 
             if (s_axi_rvalid && s_axi_rready)
-                s_axi_rvalid <= 0;
+                s_axi_rvalid <= 1'b0;
         end
     end
 
-    // ---------------- SPI MASTER MODE 0 ----------------
+    // ============================================================
+    // SPI MASTER MODE 0
+    // ============================================================
     reg [7:0] shift_tx, shift_rx;
     reg [2:0] bit_cnt;
     reg [7:0] clk_div;
 
     wire tick = (clk_div == 8'd10);
-    wire start_pulse = start_req && !spi_busy;
+    wire start_spi = start_enable && tx_valid && !spi_busy;
 
     always @(posedge clk) begin
         if (!resetn) begin
@@ -110,12 +129,11 @@ module axi_spi (
         end else begin
             clk_div <= spi_busy ? clk_div + 1 : 0;
 
-            // START
-            if (start_pulse) begin
+            if (start_spi) begin
                 spi_busy <= 1;
                 spi_cs   <= 0;
                 spi_sck  <= 0;
-                bit_cnt <= 3'd7;
+                bit_cnt  <= 3'd7;
                 shift_tx <= txdata;
                 shift_rx <= 0;
                 spi_mosi <= txdata[7];
@@ -125,7 +143,6 @@ module axi_spi (
                 spi_sck <= ~spi_sck;
 
                 if (!spi_sck) begin
-                    // rising edge → sample
                     shift_rx <= {shift_rx[6:0], spi_miso};
 
                     if (bit_cnt == 0) begin
@@ -133,16 +150,13 @@ module axi_spi (
                         spi_cs   <= 1;
                         spi_sck  <= 0;
                         rxdata   <= {shift_rx[6:0], spi_miso};
-                    end else begin
+                    end else
                         bit_cnt <= bit_cnt - 1;
-                    end
                 end else begin
-                    // falling edge → shift + drive
                     shift_tx <= {shift_tx[6:0], 1'b0};
                     spi_mosi <= shift_tx[6];
                 end
             end
         end
     end
-
 endmodule
