@@ -58,6 +58,7 @@ module axi_gpio_tb;
 
     always #(CLK_PERIOD/2) clk = ~clk;
 
+    
     task axi_write(input [ADDR_WIDTH-1:0] addr, input [DATA_WIDTH-1:0] data);
         begin
             @(posedge clk);
@@ -68,11 +69,10 @@ module axi_gpio_tb;
             s_axi_wvalid  <= 1'b1;
             s_axi_bready  <= 1'b1;
 
-        
             wait(s_axi_awready && s_axi_awvalid);
             @(posedge clk);
             s_axi_awvalid <= 1'b0;
-           
+
             wait(s_axi_wready && s_axi_wvalid);
             @(posedge clk);
             s_axi_wvalid  <= 1'b0;
@@ -80,11 +80,12 @@ module axi_gpio_tb;
             wait(s_axi_bvalid);
             @(posedge clk);
             s_axi_bready  <= 1'b0;
+
             $display("[WRITE] Addr: 0x%h, Data: 0x%h", addr, data);
         end
     endtask
 
-    // Leitura AXI-Lite
+    
     task axi_read(input [ADDR_WIDTH-1:0] addr);
         begin
             @(posedge clk);
@@ -97,14 +98,13 @@ module axi_gpio_tb;
             s_axi_arvalid <= 1'b0;
 
             wait(s_axi_rvalid);
-            $display("[READ]  Addr: 0x%h, Data: 0x%h", addr, s_axi_rdata);
+            $display("[READ ] Addr: 0x%h, Data: 0x%h", addr, s_axi_rdata);
             @(posedge clk);
             s_axi_rready  <= 1'b0;
         end
     endtask
 
     initial begin
-        
         clk = 0;
         resetn = 0;
         s_axi_awaddr = 0;
@@ -117,12 +117,13 @@ module axi_gpio_tb;
         s_axi_arvalid = 0;
         s_axi_rready = 0;
 
-        // Reset
+        
         repeat(5) @(posedge clk);
         resetn = 1;
         repeat(2) @(posedge clk);
 
-        // Escrita no GPIO
+        
+        // Teste Escrita completa
         axi_write(12'h000, 32'hAAAA5555);
         #20;
         if (gpio_out === 32'hAAAA5555)
@@ -130,18 +131,20 @@ module axi_gpio_tb;
         else
             $display("ERRO: gpio_out incorreto! Valor: 0x%h", gpio_out);
 
-        // Leitura do GPIO
+    
+        // Teste Leitura
         axi_read(12'h000);
 
-        // --- Teste 3: Escrita Parcial (Strobe) ---
-       @(posedge clk);
+
+        // Teste Escrita parcial (WSTRB)
+        @(posedge clk);
         s_axi_awaddr  <= 12'h000;
         s_axi_awvalid <= 1'b1;
         s_axi_wdata   <= 32'hFFFFFFFF;
-        s_axi_wstrb   <= 4'b0011; // Apenas bytes inferiores
+        s_axi_wstrb   <= 4'b0011;
         s_axi_wvalid  <= 1'b1;
         s_axi_bready  <= 1'b1;
-       
+
         wait(s_axi_awready);
         wait(s_axi_wready);
         @(posedge clk);
@@ -150,17 +153,41 @@ module axi_gpio_tb;
         wait(s_axi_bvalid);
         @(posedge clk);
         s_axi_bready  <= 1'b0;
-       
-        // Resultado esperado: 32'hAAAAFFFF (Bytes 0 e 1 mudaram, 2 e 3 mantiveram)
-        #10;
-        $display("[STRB]  Resultado esperado: 0xAAAAFFFF, Obtido: 0x%h", gpio_out);
 
-        // --- Teste 4: Endereço Inválido
-        axi_read(12'h004);
+        #10;
+        $display("[STRB ] Esperado: 0xAAAAFFFF, Obtido: 0x%h", gpio_out);
 
         
+        // Teste Endereço inválido
+        axi_read(12'h004);
+
+
+        // Teste 5 Escritas consecutivas (back-to-back)
+        axi_write(12'h000, 32'h11111111);
+        axi_write(12'h000, 32'h22222222);
+        axi_read (12'h000);
+
+        if (gpio_out === 32'h22222222)
+            $display("SUCESSO: Escritas consecutivas OK.");
+        else
+            $display("ERRO: Escritas consecutivas falharam!");
+
+
+        // Teste 6 Leitura após reset
+        $display("Aplicando reset novamente...");
+        resetn = 0;
+        repeat(3) @(posedge clk);
+        resetn = 1;
+        repeat(2) @(posedge clk);
+
+        axi_read(12'h000);
+        if (s_axi_rdata === 32'h00000000)
+            $display("SUCESSO: Reset limpou o GPIO.");
+        else
+            $display("ERRO: GPIO não zerou após reset!");
+
         #100;
-        $display("Simulação Finalizada.");
+        $display("Simulacao Finalizada.");
         $finish;
     end
 
