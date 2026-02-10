@@ -100,18 +100,10 @@ module axi_ram_cpu_tb;
         resetn = 1;
         #(CLK_PERIOD * 2);
 
-        $display("--- Iniciando Testes ---");
 
-        // TESTE 1: Leitura do arquivo firmware.hex
-
-        // TESTE 2: Escrita AXI-Lite
-
-        // TESTE 3: Verificação (Leitura do que foi escrito)
-
-        // Finalização
         #(CLK_PERIOD * 10);
         $display("--- Simulação Finalizada ---");
-        $finish;
+        //$finish;
     end
 
 endmodule
