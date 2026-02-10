@@ -73,14 +73,12 @@ module axi_ram_cpu_tb;
         .mem_axi_wstrb(s_axi_wstrb),
         .mem_axi_wvalid(s_axi_wvalid),
         .mem_axi_wready(s_axi_wready),
-        .mem_axi_bresp(s_axi_bresp),
         .mem_axi_bvalid(s_axi_bvalid),
         .mem_axi_bready(s_axi_bready),
         .mem_axi_araddr(s_axi_araddr),
         .mem_axi_arvalid(s_axi_arvalid),
         .mem_axi_arready(s_axi_arready),
         .mem_axi_rdata(s_axi_rdata),
-        .mem_axi_rresp(s_axi_rresp),
         .mem_axi_rvalid(s_axi_rvalid),
         .mem_axi_rready(s_axi_rready)
     );
