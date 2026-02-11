@@ -225,7 +225,7 @@ module soc_top (
     wire        timer_rvalid;
     wire        timer_rready;
 
-  axi_interconnect interconnect (
+  axi_interconnect axi_interconnect (
                      .clk(clk),
                      .resetn(resetn),
 
