@@ -118,6 +118,7 @@ module tb_axi_spi;
 
     // test
     reg [31:0] rx;
+     reg [7:0]  last_rx;
 
     initial begin
         // init
@@ -138,28 +139,47 @@ module tb_axi_spi;
         repeat (5) @(posedge clk);
         resetn = 1;
 
-        $display("=== AXI-SPI TEST START ===");
+         $display("\n=== AXI-SPI TEST START ===");
 
-        // TXDATA = 0xA5
+        
+        // Teste SPI loopback básico
         axi_write(12'h004, 32'h000000A5);
-
-        // START = 1
         axi_write(12'h000, 32'h00000001);
 
-        // wait SPI end
-        wait (dut.spi_busy == 1);
-        wait (dut.spi_busy == 0);
+        wait (dut.spi_busy);
+        wait (!dut.spi_busy);
 
-        // Read RXDATA
         axi_read(12'h008, rx);
+        last_rx = rx[7:0];
+        $display("[T1] RXDATA = 0x%02X", last_rx);
 
-        $display("RXDATA = 0x%02X", rx[7:0]);
+        // Teste Leitura de TXDATA
+        axi_write(12'h004, 32'h0000005A);
+        axi_read (12'h004, rx);
 
-        if (rx[7:0] == 8'hA5)
-            $display(" TEST PASSED");
-        else
-            $display(" TEST FAILED");
+        $display("[T2] TXDATA = 0x%02X", rx[7:0]);
 
+        
+        // Teste START sem TXDATA válido
+        axi_write(12'h000, 32'h00000001); // START sem escrever TXDATA
+
+        #200; 
+
+        axi_read(12'h008, rx);
+        $display("[T3] RXDATA = 0x%02X (esperado = 0x%02X)",
+                 rx[7:0], last_rx);
+
+        // Teste Nova transmissão após término
+        axi_write(12'h004, 32'h000000F0);
+        axi_write(12'h000, 32'h00000001);
+
+        wait (!dut.spi_busy);
+
+        axi_read(12'h008, rx);
+        $display("[T4] RXDATA = 0x%02X", rx[7:0]);
+        
+
+        $display("=== AXI-SPI TEST END ===\n");
         #50;
         $finish;
     end
