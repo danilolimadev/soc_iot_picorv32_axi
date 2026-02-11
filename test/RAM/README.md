@@ -49,7 +49,7 @@ Dois testbenches foram desenvolvidos para validar o `axi_ram`:
 - **Firmware C (`tb_axi_ram.c`)**: Código simples em C que acessa a RAM via ponteiros mapeados em memória. Compilado com toolchain RISC-V para gerar `firmware.hex`.
 - **Saída**: 
 
-![RAM_2.png](/waveforms/RAM_1.png)
+![RAM_2.png](/waveforms/RAM_2.png)
 
 
 
