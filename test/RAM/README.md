@@ -34,13 +34,10 @@ Dois testbenches foram desenvolvidos para validar o `axi_ram`:
   - Leitura dos mesmos endereços para verificar integridade.
   - Teste de strobe para escritas parciais (byte-wise).
   - Reset e inicialização.
-- **Saída**: Gera dump VCD para análise de formas de onda (ver `RAM_1.vcd`).
-- **Como Executar**:
-  ```bash
-  iverilog -o tb_ram tb_axi_ram.v ../axi/axi_ram.v
-  vvp tb_ram
-  gtkwave RAM_1.vcd  # Para visualizar formas de onda
-  ```
+- **Saída**: 
+
+![RAM_1.png](/waveforms/RAM_1.png)
+
 
 ### 2. `tb_axi_ram_cpu.v` (Teste com CPU PicoRV32)
 - **Descrição**: Testbench integrado que conecta o processador PicoRV32 à RAM via interconexão AXI. O CPU executa firmware C carregado na RAM.
@@ -50,19 +47,12 @@ Dois testbenches foram desenvolvidos para validar o `axi_ram`:
   - Validação de transações AXI geradas pelo CPU.
   - Verificação de comportamento em loop (escrita/leitura contínua).
 - **Firmware C (`tb_axi_ram.c`)**: Código simples em C que acessa a RAM via ponteiros mapeados em memória. Compilado com toolchain RISC-V para gerar `firmware.hex`.
-- **Saída**: Gera dump VCD para análise (ver `RAM_2.vcd`).
-- **Como Executar**:
-  ```bash
-  make  # Compila firmware.hex
-  iverilog -o tb_ram_cpu tb_axi_ram_cpu.v ../axi/axi_ram.v ../axi/picorv32.v ../axi/axi_interconnect.v
-  vvp tb_ram_cpu
-  gtkwave RAM_2.vcd  # Para visualizar formas de onda
-  ```
+- **Saída**: 
 
-## Formas de Onda
+![RAM_2.png](/waveforms/RAM_1.png)
 
-- **RAM_1.vcd**: Gerado pelo teste básico (`tb_axi_ram.v`). Mostra sinais AXI de escrita/leitura direta, útil para validar o protocolo AXI sem CPU.
-- **RAM_2.vcd**: Gerado pelo teste com CPU (`tb_axi_ram_cpu.v`). Exibe interações AXI do PicoRV32, incluindo fetches de instruções e acessos a dados, ideal para depuração de software embarcado.
+
+
 
 ## Dependências e Execução Geral
 
