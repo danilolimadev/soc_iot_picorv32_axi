@@ -2,3 +2,5 @@ modelsim/
 *.bak
 test/RAM/firmware.bin
 test/RAM/firmware.elf
+test/INT/firmware.bin
+test/INT/firmware.elf
