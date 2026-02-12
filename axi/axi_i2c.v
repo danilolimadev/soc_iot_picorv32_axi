@@ -1,160 +1,193 @@
-// ============================================================
-// axi_i2c.v
-// Controlador I2C com interface AXI4-Lite (stub funcional)
-// Open-drain correto em SDA/SCL
-// Ideal para bring-up de SoC PicoRV32_AXI
-// ============================================================
-
 module axi_i2c (
     input  wire        clk,
     input  wire        resetn,
 
-    // --------------------------------------------------------
-    // AXI4-Lite Write Address Channel
-    // --------------------------------------------------------
     input  wire [11:0] s_axi_awaddr,
     input  wire        s_axi_awvalid,
     output reg         s_axi_awready,
-
-    // AXI4-Lite Write Data Channel
     input  wire [31:0] s_axi_wdata,
     input  wire [3:0]  s_axi_wstrb,
     input  wire        s_axi_wvalid,
     output reg         s_axi_wready,
-
-    // AXI4-Lite Write Response Channel
     output reg [1:0]   s_axi_bresp,
     output reg         s_axi_bvalid,
     input  wire        s_axi_bready,
-
-    // --------------------------------------------------------
-    // AXI4-Lite Read Address Channel
-    // --------------------------------------------------------
     input  wire [11:0] s_axi_araddr,
     input  wire        s_axi_arvalid,
     output reg         s_axi_arready,
-
-    // AXI4-Lite Read Data Channel
     output reg [31:0]  s_axi_rdata,
     output reg [1:0]   s_axi_rresp,
     output reg         s_axi_rvalid,
     input  wire        s_axi_rready,
 
-    // --------------------------------------------------------
-    // I2C físico (open-drain)
-    // --------------------------------------------------------
-    inout  wire        i2c_sda,
-    inout  wire        i2c_scl
+    inout wire i2c_sda,
+    inout wire i2c_scl
 );
 
-    // --------------------------------------------------------
-    // Registradores internos
-    // --------------------------------------------------------
-    reg [31:0] ctrl_reg;    // [0]=enable, [1]=SDA_oe, [2]=SCL_oe
     reg [31:0] addr_reg;
-    reg [31:0] tx_reg;
-    reg [31:0] rx_reg;
-    reg [31:0] status_reg;
+    reg [31:0] data_reg;
 
-    // --------------------------------------------------------
-    // Controle open-drain
-    // --------------------------------------------------------
-    reg sda_oe;
-    reg scl_oe;
+    reg sda_drive_low;
+    reg scl_drive_low;
 
-    // Open-drain real: só força 0 ou solta (Z)
-    assign i2c_sda = sda_oe ? 1'b0 : 1'bz;
-    assign i2c_scl = scl_oe ? 1'b0 : 1'bz;
+    assign i2c_sda = (sda_drive_low) ? 1'b0 : 1'bz;
+    assign i2c_scl = (scl_drive_low) ? 1'b0 : 1'bz;
 
-    // --------------------------------------------------------
-    // Lógica simples de controle I2C (stub)
-    // --------------------------------------------------------
+    reg busy;
+
+    localparam IDLE      = 0;
+    localparam START     = 1;
+    localparam SEND_ADDR = 2;
+    localparam ACK_ADDR  = 3;
+    localparam SEND_DATA = 4;
+    localparam ACK_DATA  = 5;
+    localparam STOP      = 6;
+
+    reg [3:0] main_state;
+    reg [2:0] bit_cnt;
+    reg [1:0] sub_state;
+    reg [7:0] clk_div;
+
     always @(posedge clk) begin
         if (!resetn) begin
-            sda_oe <= 1'b0;
-            scl_oe <= 1'b0;
+            s_axi_awready <= 0;
+            s_axi_wready  <= 0;
+            s_axi_bvalid  <= 0;
+            s_axi_bresp   <= 0;
+            s_axi_arready <= 0;
+            s_axi_rvalid  <= 0;
+            s_axi_rdata   <= 0;
+            s_axi_rresp   <= 0;
+
+            main_state <= IDLE;
+            sub_state <= 0;
+            clk_div <= 0;
+            busy <= 0;
+
+            sda_drive_low <= 0;
+            scl_drive_low <= 0;
         end else begin
-            if (ctrl_reg[0]) begin
-                sda_oe <= ctrl_reg[1];
-                scl_oe <= ctrl_reg[2];
-            end else begin
-                sda_oe <= 1'b0;
-                scl_oe <= 1'b0;
-            end
-        end
-    end
 
-    // --------------------------------------------------------
-    // Escrita AXI4-Lite
-    // --------------------------------------------------------
-    always @(posedge clk) begin
-        if (!resetn) begin
-            s_axi_awready <= 1'b0;
-            s_axi_wready  <= 1'b0;
-            s_axi_bvalid  <= 1'b0;
-            s_axi_bresp   <= 2'b00;
-
-            ctrl_reg   <= 32'b0;
-            addr_reg   <= 32'b0;
-            tx_reg     <= 32'b0;
-            rx_reg     <= 32'b0;
-            status_reg <= 32'b0;
-        end else begin
-            // Handshake simples
-            s_axi_awready <= s_axi_awvalid && !s_axi_awready;
-            s_axi_wready  <= s_axi_wvalid  && !s_axi_wready;
-
-            if (s_axi_awvalid && s_axi_wvalid &&
-                s_axi_awready && s_axi_wready) begin
-
-                s_axi_bvalid <= 1'b1;
-                s_axi_bresp  <= 2'b00; // OKAY
-
-                case (s_axi_awaddr[5:2])
-                    4'h0: ctrl_reg   <= s_axi_wdata;
-                    4'h1: addr_reg   <= s_axi_wdata;
-                    4'h2: tx_reg     <= s_axi_wdata;
-                    4'h3: status_reg <= s_axi_wdata;
-                    default: ;
-                endcase
-
-                // Loopback simples para debug
-                rx_reg <= tx_reg + 32'd1;
-            end
+            // =====================================================
+            // AXI WRITE — AGORA ESPERA busy = 0
+            // =====================================================
+            s_axi_awready <= (!busy) && s_axi_awvalid;
+            s_axi_wready  <= (!busy) && s_axi_wvalid;
 
             if (s_axi_bvalid && s_axi_bready)
-                s_axi_bvalid <= 1'b0;
-        end
-    end
+                s_axi_bvalid <= 0;
 
-    // --------------------------------------------------------
-    // Leitura AXI4-Lite
-    // --------------------------------------------------------
-    always @(posedge clk) begin
-        if (!resetn) begin
-            s_axi_arready <= 1'b0;
-            s_axi_rvalid  <= 1'b0;
-            s_axi_rresp   <= 2'b00;
-            s_axi_rdata   <= 32'b0;
-        end else begin
-            s_axi_arready <= s_axi_arvalid && !s_axi_arready;
+            else if (s_axi_awvalid && s_axi_wvalid && s_axi_awready && s_axi_wready) begin
+
+                // Endereço
+                if (s_axi_awaddr[5:2] == 4'h1) begin
+                    addr_reg <= s_axi_wdata;
+                    s_axi_bvalid <= 1;
+                    $display("[AXI_I2C] Endereco Configurado: 0x%h", s_axi_wdata);
+                end
+
+                // Dado → Inicia FSM
+                if (s_axi_awaddr[5:2] == 4'h2 && main_state == IDLE) begin
+                    data_reg <= s_axi_wdata;
+                    main_state <= START;
+                    sub_state <= 0;
+                    clk_div <= 0;
+                    busy <= 1;   // trava AXI
+                    $display("[AXI_I2C] Dado escrito: 0x%h. Iniciando...", s_axi_wdata);
+                end
+            end
+
+            // =====================================================
+            // AXI READ (igual ao seu)
+            // =====================================================
+            s_axi_arready <= (!s_axi_arready && s_axi_arvalid);
 
             if (s_axi_arvalid && s_axi_arready) begin
-                s_axi_rvalid <= 1'b1;
-                s_axi_rresp  <= 2'b00;
+                s_axi_rvalid <= 1;
+                s_axi_rdata  <= 0;
+            end else if (s_axi_rvalid && s_axi_rready)
+                s_axi_rvalid <= 0;
 
-                case (s_axi_araddr[5:2])
-                    4'h0: s_axi_rdata <= ctrl_reg;
-                    4'h1: s_axi_rdata <= addr_reg;
-                    4'h2: s_axi_rdata <= tx_reg;
-                    4'h3: s_axi_rdata <= rx_reg;
-                    4'h4: s_axi_rdata <= status_reg;
-                    default: s_axi_rdata <= 32'hDEAD_BEEF;
-                endcase
-            end else if (s_axi_rvalid && s_axi_rready) begin
-                s_axi_rvalid <= 1'b0;
+            // =====================================================
+            // FSM I2C
+            // =====================================================
+            if (main_state != IDLE) begin
+                clk_div <= clk_div + 1;
+
+                if (clk_div == 20) begin
+                    clk_div <= 0;
+
+                    case (main_state)
+
+                        START: begin
+                            if (sub_state == 0) begin
+                                sda_drive_low <= 1;
+                                scl_drive_low <= 0;
+                                sub_state <= 1;
+                                $display("[I2C] START");
+                            end else begin
+                                scl_drive_low <= 1;
+                                bit_cnt <= 7;
+                                main_state <= SEND_ADDR;
+                                sub_state <= 0;
+                            end
+                        end
+
+                        SEND_ADDR, SEND_DATA: begin
+                            case (sub_state)
+                                0: begin scl_drive_low <= 1; sub_state <= 1; end
+                                1: begin
+                                    if (main_state == SEND_ADDR)
+                                        sda_drive_low <= ~addr_reg[bit_cnt];
+                                    else
+                                        sda_drive_low <= ~data_reg[bit_cnt];
+                                    sub_state <= 2;
+                                end
+                                2: begin scl_drive_low <= 0; sub_state <= 3; end
+                                3: begin
+                                    scl_drive_low <= 1;
+                                    sub_state <= 0;
+                                    if (bit_cnt == 0)
+                                        main_state <= (main_state == SEND_ADDR) ? ACK_ADDR : ACK_DATA;
+                                    else
+                                        bit_cnt <= bit_cnt - 1;
+                                end
+                            endcase
+                        end
+
+                        ACK_ADDR, ACK_DATA: begin
+                            case (sub_state)
+                                0: begin scl_drive_low <= 1; sda_drive_low <= 0; sub_state <= 1; end
+                                1: sub_state <= 2;
+                                2: begin scl_drive_low <= 0; sub_state <= 3; end
+                                3: begin
+                                    scl_drive_low <= 1;
+                                    bit_cnt <= 7;
+                                    sub_state <= 0;
+                                    main_state <= (main_state == ACK_ADDR) ? SEND_DATA : STOP;
+                                end
+                            endcase
+                        end
+
+                        STOP: begin
+                            case (sub_state)
+                                0: begin scl_drive_low <= 1; sda_drive_low <= 1; sub_state <= 1; end
+                                1: begin scl_drive_low <= 0; sub_state <= 2; end
+                                2: begin
+                                    sda_drive_low <= 0;
+                                    sub_state <= 3;
+                                    $display("[I2C] STOP");
+                                end
+                                3: begin
+                                    main_state <= IDLE;
+                                    busy <= 0;            // libera AXI
+                                    s_axi_bvalid <= 1;    // RESPONDE SÓ AGORA
+                                end
+                            endcase
+                        end
+                    endcase
+                end
             end
         end
     end
-
 endmodule
