@@ -45,7 +45,7 @@ module axi_ram #(
         for (i=0; i<MEM_WORDS; i=i+1)
             mem[i] = 0;
         // Carrega firmware
-        $readmemh("./test/RAM/firmware.hex", mem);
+        $readmemh("firmware.hex", mem);
     end
 
     // --------------------
