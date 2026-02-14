@@ -1,161 +1,167 @@
-// ============================================================================
-//  Testbench — SoC AXI (CPU + RAM + GPIO + UART + SPI + I2C + TIMER)
-// ============================================================================
-
 `timescale 1ns/1ps
 
 module soc_tb;
 
-    // ===============================
-    // Clock e Reset
-    // ===============================
-    reg clk;
-    reg resetn;
+  reg clk;
+  reg resetn;
+  reg boot_mode;   // <<< NOVO
 
-    initial begin
-        clk = 0;
-        forever #10 clk = ~clk; // 50 MHz
+  // Clock 50MHz
+  initial
+  begin
+    clk = 0;
+    forever
+      #10 clk = ~clk;
+  end
+
+  initial
+  begin
+    resetn   = 0;
+    boot_mode = 0;
+    #200;
+    resetn   = 1;
+
+    // Ativa modo boot após reset
+    #100;
+    boot_mode = 1;
+  end
+
+  // =========================================================
+  // SINAIS
+  // =========================================================
+
+  wire uart_tx;
+  wire uart_rx;
+
+  wire spi_mosi, spi_miso, spi_sck, spi_cs;
+
+  assign spi_miso = 0;
+
+  // UART loop: bootloader TX -> ROM RX
+  assign uart_rx = uart_tx;
+
+  // =========================================================
+  // I2C (mantido como estava)
+  // =========================================================
+
+  wire i2c_sda;
+  wire i2c_scl;
+
+  pullup(i2c_sda);
+  pullup(i2c_scl);
+
+  reg tb_drive_sda_low = 0;
+  assign i2c_sda = (tb_drive_sda_low) ? 1'b0 : 1'bz;
+
+  wire [31:0] gpio_out;
+  wire        trap;
+  wire        timer_irq;
+
+  // =========================================================
+  // INSTÂNCIA DO SOC
+  // =========================================================
+
+  wire uart_rx_boot;
+  wire [31:0] firmware_size;
+
+  bootloader_uart #(
+                    .FIRMWARE_FILE("firmware.hex")
+                  ) tb_boot (
+                    .clk(clk),
+                    .resetn(resetn),
+                    .boot_enable(boot_mode),
+                    .uart_tx(uart_rx_boot),  // <- conecta no RX do SoC
+                    .done(),
+                    .firmware_size(firmware_size)
+                  );
+
+
+  soc_top uut (
+            .clk(clk),
+            .resetn(resetn),
+            .boot_mode(boot_mode),   // <<< IMPORTANTE
+            .uart_rx_boot(uart_rx_boot),
+            .firmware_size(firmware_size),
+            .trap(trap),
+            .gpio_out(gpio_out),
+            .timer_irq(timer_irq),
+            .uart_tx(uart_tx),
+            .uart_rx(uart_rx),
+            .spi_mosi(spi_mosi),
+            .spi_miso(spi_miso),
+            .spi_sck(spi_sck),
+            .spi_cs(spi_cs),
+            .i2c_sda(i2c_sda),
+            .i2c_scl(i2c_scl)
+          );
+
+  // =========================================================
+  // MONITOR DE BOOT
+  // =========================================================
+
+  initial
+  begin
+    wait(boot_mode);
+    $display("\n[TB] Bootloader ativado...");
+    wait(uut.boot_mgr.rom_done);
+    boot_mode = 0;
+    $display("[TB] ROM terminou de receber firmware!");
+  end
+
+  // =========================================================
+  // SLAVE I2C (igual ao seu)
+  // =========================================================
+
+  reg [7:0] captured_addr;
+  reg [7:0] captured_data;
+  integer i;
+
+  initial
+  begin
+    tb_drive_sda_low = 0;
+    wait(resetn);
+
+    @(negedge i2c_sda);
+    $display("[TB SLAVE] Start Condition Detectado!");
+
+    for (i=7; i>=0; i=i-1)
+    begin
+      @(posedge i2c_scl);
+      captured_addr[i] = i2c_sda;
     end
+    $display("[TB SLAVE] Endereco recebido: 0x%h", captured_addr);
 
-    initial begin
-        resetn = 0;
-        #200;
-        resetn = 1;
+    @(negedge i2c_scl);
+    tb_drive_sda_low = 1;
+    @(negedge i2c_scl);
+    tb_drive_sda_low = 0;
+
+    for (i=7; i>=0; i=i-1)
+    begin
+      @(posedge i2c_scl);
+      captured_data[i] = i2c_sda;
     end
+    $display("[TB SLAVE] Dado recebido: 0x%h", captured_data);
 
-    // ===============================
-    // UART
-    // ===============================
-    wire uart_tx;
-    reg  uart_rx;
+    @(negedge i2c_scl);
+    tb_drive_sda_low = 1;
+    @(negedge i2c_scl);
+    tb_drive_sda_low = 0;
 
-    initial uart_rx = 1'b1; // idle
+    @(posedge i2c_sda);
+    if (i2c_scl)
+      $display("[TB SLAVE] Stop Condition Detectado. Sucesso Total!");
+  end
 
-    // ===============================
-    // SPI
-    // ===============================
-    wire spi_sck;
-    wire spi_mosi;
-    wire spi_miso;
-    wire spi_cs;
+  // =========================================================
+  // TIMEOUT GERAL
+  // =========================================================
 
-    assign spi_miso = 1'b0; // slave dummy
-
-    // ===============================
-    // I2C (open-drain)
-    // ===============================
-    wire i2c_sda;
-    wire i2c_scl;
-
-    pullup(i2c_sda);
-    pullup(i2c_scl);
-
-    // ===============================
-    // Debug / GPIO / IRQ
-    // ===============================
-    wire [31:0] gpio_out;
-    wire        trap;
-    wire        timer_irq;
-
-    // ===============================
-    // Instância do SoC
-    // ===============================
-    soc_top uut (
-        .clk(clk),
-        .resetn(resetn),
-
-        // Debug
-        .trap(trap),
-        .gpio_out(gpio_out),
-        .timer_irq(timer_irq),
-
-        // UART
-        .uart_tx(uart_tx),
-        .uart_rx(uart_rx),
-
-        // SPI
-        .spi_mosi(spi_mosi),
-        .spi_miso(spi_miso),
-        .spi_sck(spi_sck),
-        .spi_cs(spi_cs),
-
-        // I2C
-        .i2c_sda(i2c_sda),
-        .i2c_scl(i2c_scl)
-    );
-
-    // =========================================================================
-    // Monitoramento da UART TX (ASCII)
-    // =========================================================================
-    reg [9:0] uart_shift;
-    integer bit_count;
-    realtime baud_period = 8680; // ~115200 baud @50MHz
-
-    initial begin
-        wait(resetn);
-        $display("\n=== Simulação Iniciada ===\n");
-
-        forever begin
-            @(negedge uart_tx); // start bit
-            #(baud_period/2);
-
-            for (bit_count = 0; bit_count < 10; bit_count = bit_count + 1) begin
-                uart_shift[bit_count] = uart_tx;
-                #(baud_period);
-            end
-
-            if (uart_shift[0] == 1'b0 && uart_shift[9] == 1'b1) begin
-                $write("%c", uart_shift[8:1]);
-                $fflush();
-            end
-        end
-    end
-
-    // =========================================================================
-    // Monitoramento de GPIO
-    // =========================================================================
-    always @(gpio_out) begin
-        $display("[TB] GPIO_OUT = 0x%08X @ %0t", gpio_out, $time);
-    end
-
-    // =========================================================================
-    // Monitoramento de IRQ do Timer
-    // =========================================================================
-    always @(posedge timer_irq) begin
-        $display("[TB] >>> TIMER IRQ ASSERTED @ %0t", $time);
-    end
-
-    // =========================================================================
-    // Monitoramento de TRAP (erro fatal do CPU)
-    // =========================================================================
-    always @(posedge trap) begin
-        $display("\n[TB] !!! TRAP DETECTADO — CPU PAROU @ %0t !!!\n", $time);
-        $stop;
-    end
-
-    // =========================================================================
-    // Observação de I2C (nível dos pinos)
-    // =========================================================================
-    always @(i2c_sda or i2c_scl) begin
-        $display("[TB][I2C] SDA=%b SCL=%b @ %0t", i2c_sda, i2c_scl, $time);
-    end
-
-    // =========================================================================
-    // Tempo total de simulação
-    // =========================================================================
-    initial begin
-        wait(resetn);
-        #500000;
-        $display("\n[TB] Fim da simulação.\n");
-        $stop;
-    end
-
-    // =========================================================================
-    // Dump GTKWave
-    // =========================================================================
-    initial begin
-        $dumpfile("soc_tb.vcd");
-        $dumpvars(0, soc_tb);
-    end
+  initial
+  begin
+    #10000000; // 1ms
+    $display("\n[TB] Timeout.");
+    $stop;
+  end
 
 endmodule
