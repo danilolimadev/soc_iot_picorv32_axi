@@ -256,6 +256,57 @@ module tb_axi_interconnect;
             $display("TEST 2 PASS: Read GPIO");
         end
 
+         // TESTE 3 - WRITE GPIO
+        @(posedge clk);
+        m_awaddr  = 32'h1000_0008;   // Endereço GPIO
+        m_wdata   = 32'hA5A5A5A5;
+        m_wstrb   = 4'hF;
+        m_awvalid = 1;
+        m_wvalid  = 1;
+
+        @(posedge clk);
+        m_awvalid = 0;
+        m_wvalid  = 0;
+
+        gpio_bvalid = 1;
+        @(posedge clk);
+        gpio_bvalid = 0;
+
+        if (!m_bvalid) begin
+            $display("TEST 3 FAIL: Write GPIO");
+            $stop;
+        end
+        else begin
+            $display("TEST 3 PASS: Write GPIO");
+        end
+
+
+        // TESTE 4 - READ RAM
+        @(posedge clk);
+        m_araddr  = 32'h0000_0020;   // Endereço RAM
+        m_arvalid = 1;
+
+        @(posedge clk);
+        m_arvalid = 0;
+
+        ram_rvalid = 1;
+        ram_rdata  = 32'hCAFEBABE; 
+        @(posedge clk);
+        ram_rvalid = 0;
+
+        if (!m_rvalid) begin
+            $display("TEST 4 FAIL: Read RAM - RVALID");
+            $stop;
+        end
+
+        if (m_rdata != 32'hCAFEBABE) begin
+            $display("TEST 4 FAIL: Read RAM - DATA");
+            $stop;
+        end
+        else begin
+            $display("TEST 4 PASS: Read RAM");
+        end
+
 
         $display("======================================");
         $display("ALL TESTS PASSED ");
