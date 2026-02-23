@@ -307,6 +307,48 @@ module tb_axi_interconnect;
             $display("TEST 4 PASS: Read RAM");
         end
 
+       
+        // TESTE 5 - WRITE ENDEREÇO INVÁLIDO 
+        @(posedge clk);
+        m_awaddr  = 32'h6000_0000;   // Não mapeado
+        m_wdata   = 32'h11111111;
+        m_wstrb   = 4'hF;
+        m_awvalid = 1;
+        m_wvalid  = 1;
+
+        @(posedge clk);
+        m_awvalid = 0;
+        m_wvalid  = 0;
+
+        @(posedge clk);
+
+        if (m_bvalid) begin
+            $display("TEST 5 FAIL: Write invalido gerou resposta!");
+            $stop;
+        end
+        else begin
+            $display("TEST 5 PASS: Write invalido nao respondeu (correto)");
+        end
+
+
+        // TESTE 6 - READ ENDEREÇO INVÁLIDO
+        @(posedge clk);
+        m_araddr  = 32'h6000_0000;   // Não mapeado
+        m_arvalid = 1;
+
+        @(posedge clk);
+        m_arvalid = 0;
+
+        @(posedge clk);
+
+        if (m_rvalid) begin
+            $display("TEST 6 FAIL: Read invalido gerou resposta!");
+            $stop;
+        end
+        else begin
+            $display("TEST 6 PASS: Read invalido nao respondeu (correto)");
+        end
+
 
         $display("======================================");
         $display("ALL TESTS PASSED ");
