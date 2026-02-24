@@ -16,14 +16,16 @@ int main() {
             asm volatile("nop"); // instrução NO OPERATION
         // escreve o valor lido 128 bytes depois
         // na simulação a palavra será vista 128/4 = 32 palavras depois
-        mmio_write32(RAM_BASE + 0x1000 + i*4, value);
+        mmio_write32(RAM_BASE + 0x900 + i*4, value);
     }
    
 
     while(1)
     {
         // endereço de memória 1023 da variável mem do axi_ram
-        mmio_write32(RAM_BASE + 0x0FFC, ext_irq_4_count);
+        mmio_write32(RAM_BASE + 0x08FC, ext_irq_4_count);
+        
+        mmio_write32(GPIO_BASE + 0x0, ext_irq_4_count);
     }
     return 0;
 }

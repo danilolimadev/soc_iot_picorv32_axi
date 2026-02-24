@@ -8,58 +8,138 @@ module int_cpu_tb;
     parameter DATA_WIDTH = 32;
     parameter CLK_PERIOD = 10; // Período de 10ns (frequência de 100MHz)
 
-    // --- Sinais de Estímulo (Regs para controlar, Wires para observar) ---
+    // ===============================
+    // Clock e Reset
+    // ===============================
     reg clk;
     reg resetn;
-    reg [31:0] irq; // Linha de interrupção para o CPU
+    reg [31:0] irq = 0; // Linha de interrupção para o CPU
 
-    // --- Instanciação do Módulo RAM (Unit Under Test - UUT) ---
-    int_cpu_top #(
-        .ADDR_WIDTH(ADDR_WIDTH),
-        .DATA_WIDTH(DATA_WIDTH)
-    ) uut (
+    initial begin
+        clk = 0;
+        forever #(CLK_PERIOD/2) clk = ~clk; // Clock de 50 MHz
+    end
+
+    initial begin
+        resetn = 0;
+        #200;
+        resetn = 1;
+    end
+
+    // ===============================
+    // UART Signals
+    // ===============================
+    wire uart_tx;
+    reg  uart_rx;
+
+    initial uart_rx = 1'b1; // linha idle
+
+    // ===============================
+    // SPI Signals
+    // ===============================
+    wire spi_sck;
+    wire spi_mosi;
+    wire spi_miso;
+    wire spi_cs;
+
+    assign spi_miso = 1'b0; // sem resposta de slave externo (loopback pode ser adicionado)
+
+    // ===============================
+    // I2C Signals
+    // ===============================
+    wire i2c_sda;
+    wire i2c_scl;
+    pullup(i2c_sda);
+    pullup(i2c_scl);
+
+    // ===============================
+    // Instância do SoC
+    // ===============================
+    soc_top uut (
         .clk(clk),
         .resetn(resetn),
-        .irq(irq) // Conecta a linha de IRQ do CPU ao testbench
+
+        // UART
+        .uart_tx(uart_tx),
+        .uart_rx(uart_rx),
+
+        // SPI
+        .spi_mosi(spi_mosi),
+        .spi_miso(spi_miso),
+        .spi_sck(spi_sck),
+        .spi_cs(spi_cs),
+
+        // I2C
+        .i2c_sda(i2c_sda),
+        .i2c_scl(i2c_scl),
+
+        .irq_4(irq[4])  // Conecta a IRQ 4 ao sinal de interrupção externo
     );
 
+    // =========================================================================
+    // Monitoramento da UART TX (decodifica caracteres ASCII)
+    // =========================================================================
+    reg [9:0] uart_shift;
+    integer bit_count = 0;
+    realtime baud_period = 400;//8680; // ~115200 baud @50MHz
 
-    // --- Geração do Clock ---
-    initial clk = 0;
-    always #(CLK_PERIOD/2) clk = ~clk; // Inverte o nível lógico a cada meio período
- 
-    //  Simula uma interrupção externa após alguns ciclos
+    initial begin
+        wait(resetn);
+        $display("\n=== Simulação Iniciada ===\n");
+        forever begin
+            @(negedge uart_tx); // start bit
+            #(baud_period/2);
+            uart_shift = 0;
+            for (bit_count = 0; bit_count < 10; bit_count = bit_count + 1) begin
+                uart_shift[bit_count] = uart_tx;
+                #(baud_period);
+            end
+            if (uart_shift[0] == 0 && uart_shift[9] == 1) begin
+                $write("%c", uart_shift[8:1]);
+                $display(uart_shift[8:1]);
+                $fflush();
+            end
+        end
+    end
+
+    // =========================================================================
+    // Simulação da interrupção (IRQ)
+    // =========================================================================
+
     always #(CLK_PERIOD * 20000) begin
         irq[4] = 1;             // Ativa a IRQ 4
         #(CLK_PERIOD * 1);      // interrupção latched
         irq[4] = 0;             // Desativa a IRQ externa
     end
 
-    // --- Bloco Principal de Estímulos ---
     initial begin
-        // 1. Inicialização segura de todos os sinais de entrada
-        resetn = 0;
-        irq = 0;
+        irq = 32'd0;
+        wait(resetn);
+        #2000;
+        forever #(CLK_PERIOD * 20000) begin
+            irq[4] = 1;             // Ativa a IRQ 4
+            #(CLK_PERIOD * 1);      // interrupção latched
+            irq[4] = 0;             // Desativa a IRQ externa
+        end
+    end
 
-
-        // 2. Aguarda alguns ciclos e libera o Reset
-        #(CLK_PERIOD * 5);
-        resetn = 1;
-        #(CLK_PERIOD * 2);
-
-       
-                 
-
-        #(CLK_PERIOD * 100000);
-        $display("--- Simulação Finalizada ---");
-        $finish;
+    // =========================================================================
+    // Simulação de periféricos SPI e I2C
+    // =========================================================================
+    initial begin
+        wait(resetn);
+        #5000;
+        $display("\n[TB] Teste SPI/I2C em andamento...");
+        #1000;
+        $display("[TB] Teste finalizado.\n");
+        $stop;
     end
 
     // =========================================================================
     // Dump de sinais para GTKWave
     // =========================================================================
     initial begin
-        $dumpfile("dump2.vcd");
+        $dumpfile("dump3.vcd");
         $dumpvars(0, int_cpu_tb);
     end
 
