@@ -169,19 +169,21 @@ module tb_axi_spi;
         $display("[T3] RXDATA = 0x%02X (esperado = 0x%02X)",
                  rx[7:0], last_rx);
 
-        // Teste Nova transmissão após término
-        axi_write(12'h004, 32'h000000F0);
-        axi_write(12'h000, 32'h00000001);
 
-        wait (!dut.spi_busy);
+        // Teste Escrita em endereço inválido
+        axi_write(12'h020, 32'h12345678);   // endereço não mapeado
+        axi_read (12'h020, rx);
+        $display("[T4] READ INVALID ADDR = 0x%08X (esperado = 0xDEADBEEF)", rx);
 
-        axi_read(12'h008, rx);
-        $display("[T4] RXDATA = 0x%02X", rx[7:0]);
-        
+
+        // Teste Leitura de endereço inválido
+        axi_read(12'h030, rx);
+        $display("[T5] READ INVALID ADDR = 0x%08X (esperado = 0xDEADBEEF)", rx);
+
 
         $display("=== AXI-SPI TEST END ===\n");
         #50;
-        $finish;
+        $stop;
     end
 
 endmodule
