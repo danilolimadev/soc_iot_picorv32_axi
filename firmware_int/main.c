@@ -1,4 +1,4 @@
-#include "../../common/soc.h"
+#include "../common/soc.h"
 
 uint32_t ext_irq_4_count = 0;
 

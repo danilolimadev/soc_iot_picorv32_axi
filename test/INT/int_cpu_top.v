@@ -73,7 +73,7 @@ module soc_top (
         .MASKED_IRQ(32'hFFFF_FF00), // Máscara para desabilitar IRQs 8-31 (permite 0-7)
         .PROGADDR_IRQ(32'h0000_0010),   // Endereço de vetor de interrupção
         .PROGADDR_RESET(32'h0000_0000), // Endereço de reset do programa
-        .STACKADDR(32'h0000_2000) // Endereço inicial da pilha
+        .STACKADDR(32'h0000_FFFF) // Endereço inicial da pilha
         ) cpu (
                  .clk(clk),
                  .resetn(resetn),

@@ -6,6 +6,7 @@ module soc_top (
     output wire        trap,
     output wire [31:0] gpio_out,
     output wire        timer_irq,
+    input wire [31:0]  ext_irq,
 
     // UART
     output wire        uart_tx,
@@ -59,14 +60,21 @@ module soc_top (
     wire        trace_valid;
     wire [35:0] trace_data;
 
-    assign irq = {31'd0, timer_irq};
+    assign irq = {18'd0, timer_irq, 13'd0} | ext_irq;
+
+
 
     // =========================================================================
     //  CPU
     // =========================================================================
     picorv32_axi #(
-        .PROGADDR_RESET(32'h00000000),
-        .STACKADDR     (32'h00001000)
+        .ENABLE_IRQ(1'b1), // Habilita suporte a interrupções
+        .ENABLE_IRQ_QREGS(1'b1), // Habilita registradores de status de IRQ
+        .ENABLE_IRQ_TIMER(1'b1), // Habilita timer interno para gerar interrupções periódicas
+        .MASKED_IRQ(32'hFFFF_FF00), // Máscara para desabilitar IRQs 8-31 (permite 0-7)
+        .PROGADDR_IRQ(32'h0000_0010),   // Endereço de vetor de interrupção
+        .PROGADDR_RESET(32'h0000_0000), // Endereço de reset do programa
+        .STACKADDR(32'h0000_FFFF) // Endereço inicial da pilha
         ) cpu (
                  .clk(clk),
                  .resetn(resetn),

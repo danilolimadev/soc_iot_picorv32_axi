@@ -11,10 +11,12 @@ module soc_tb;
     // ===============================
     reg clk;
     reg resetn;
+    reg [31:0] irq; // Linha de interrupção para o CPU
+    parameter CLK_PERIOD = 20; // Período de 10ns (frequência de 100MHz)
 
     initial begin
         clk = 0;
-        forever #10 clk = ~clk; // Clock de 50 MHz
+        forever #(CLK_PERIOD/2) clk = ~clk; // Clock de 50 MHz
     end
 
     initial begin
@@ -73,10 +75,11 @@ module soc_tb;
 
         // I2C
         .i2c_sda(i2c_sda),
-        .i2c_scl(i2c_scl)
+        .i2c_scl(i2c_scl),
 
-        // IRQ do timer
+        // IRQ
         //.timer_irq(timer_irq)
+        .ext_irq(irq)  // Conecta a IRQ 4 ao sinal de interrupção externo
     );
 
     // =========================================================================
@@ -120,6 +123,24 @@ module soc_tb;
     // =========================================================================
     // Simulação de periféricos SPI e I2C
     // =========================================================================
+
+    always #(CLK_PERIOD * 20000) begin
+        irq[4] = 1;             // Ativa a IRQ 4
+        #(CLK_PERIOD * 1);      // interrupção latched
+        irq[4] = 0;             // Desativa a IRQ externa
+    end
+
+    initial begin
+        irq = 32'd0;
+        wait(resetn);
+
+        forever #(CLK_PERIOD * 20000) begin
+            irq[4] = 1;             // Ativa a IRQ 4
+            #(CLK_PERIOD * 1);      // interrupção latched
+            irq[4] = 0;             // Desativa a IRQ externa
+        end
+    end
+    /*
     initial begin
         wait(resetn);
         #5000;
@@ -128,6 +149,7 @@ module soc_tb;
         $display("[TB] Teste finalizado.\n");
         $stop;
     end
+    */
 
     // =========================================================================
     // Dump de sinais para GTKWave
