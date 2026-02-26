@@ -157,6 +157,64 @@ module axi_gpio_tb;
         #10;
         $display("[STRB ] Esperado: 0xAAAAFFFF, Obtido: 0x%h", gpio_out);
 
+
+
+        // TESTE NEGATIVO - WRITE endereço inválido
+        $display("\nTESTE NEGATIVO 1 - WRITE endereco invalido");
+
+        axi_write(12'h004, 32'h99999999);  // endereço inválido
+
+        #10;
+        if (gpio_out === 32'h99999999) begin
+            $display("ERRO GRAVE: GPIO foi alterado com endereco invalido!");
+        end
+        else begin
+            $display("PASSOU (correto): Endereco invalido NAO alterou GPIO.");
+        end
+
+
+        // TESTE NEGATIVO - WRITE com WSTRB = 0
+        $display("\nTESTE NEGATIVO 2 - WRITE com WSTRB = 0");
+
+        @(posedge clk);
+        s_axi_awaddr  <= 12'h000;
+        s_axi_awvalid <= 1'b1;
+        s_axi_wdata   <= 32'hFFFFFFFF;
+        s_axi_wstrb   <= 4'b0000;   // nenhum byte habilitado
+        s_axi_wvalid  <= 1'b1;
+        s_axi_bready  <= 1'b1;
+
+        wait(s_axi_awready);
+        wait(s_axi_wready);
+        @(posedge clk);
+        s_axi_awvalid <= 1'b0;
+        s_axi_wvalid  <= 1'b0;
+
+        wait(s_axi_bvalid);
+        @(posedge clk);
+        s_axi_bready <= 1'b0;
+
+        #10;
+        if (gpio_out === 32'hFFFFFFFF) begin
+            $display("ERRO: GPIO alterado mesmo com WSTRB=0!");
+        end
+        else begin
+            $display("PASSOU (correto): WSTRB=0 nao alterou GPIO.");
+        end
+
+
+        // TESTE NEGATIVO - READ endereço inválido
+        $display("\nTESTE NEGATIVO 3 - READ endereco invalido");
+
+        axi_read(12'h008);  // inválido
+
+        if (s_axi_rdata !== 32'hDEADBEEF) begin
+            $display("ERRO: Endereco invalido nao retornou DEAD_BEEF!");
+        end
+        else begin
+            $display("PASSOU (correto): Endereco invalido retornou DEAD_BEEF.");
+        end
+
         
         // Teste Endereço inválido
         axi_read(12'h004);
@@ -188,7 +246,7 @@ module axi_gpio_tb;
 
         #100;
         $display("Simulacao Finalizada.");
-        $finish;
+        $stop;
     end
 
 endmodule
