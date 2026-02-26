@@ -470,7 +470,7 @@ module soc_top (
              .s_axi_rresp(uart_rresp),
              .s_axi_rvalid(uart_rvalid),
              .s_axi_rready(uart_rready),
-             .tx(uart_tx_cpu),
+             .tx(uart_tx),
              .rx(uart_rx)
            );
 

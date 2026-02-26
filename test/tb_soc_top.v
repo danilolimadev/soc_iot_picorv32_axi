@@ -38,7 +38,7 @@ module soc_tb;
   assign spi_miso = 0;
 
   // UART loop: bootloader TX -> ROM RX
-  assign uart_rx = uart_tx;
+  //assign uart_rx = uart_tx;
 
   // =========================================================
   // I2C (mantido como estava)
@@ -159,7 +159,7 @@ module soc_tb;
 
   initial
   begin
-    #10000000; // 1ms
+    #100000000; // 1ms
     $display("\n[TB] Timeout.");
     $stop;
   end
