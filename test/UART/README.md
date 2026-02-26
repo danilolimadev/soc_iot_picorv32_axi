@@ -73,7 +73,7 @@ Teste de robustez para medir a tolerância do receptor a variações na taxa de 
 
 ---
 
-## 🛠 Detalhes Técnicos do Ambiente
+## Detalhes Técnicos do Ambiente
 
 | Parâmetro            | Valor de Configuração |
 |----------------------|----------------------|
