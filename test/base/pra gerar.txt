@@ -1,0 +1,4 @@
+riscv64-unknown-elf-gcc -march=rv32im -mabi=ilp32 -c start.S
+riscv64-unknown-elf-gcc -march=rv32im -mabi=ilp32 -c main.c
+riscv64-unknown-elf-ld -m elf32lriscv -T linker.ld start.o main.o -o firmware.elf
+riscv64-unknown-elf-objcopy -O verilog firmware.elf firmware.hex
