@@ -118,39 +118,46 @@ module soc_tb;
 
   initial
   begin
-    tb_drive_sda_low = 0;
-    wait(resetn);
+      tb_drive_sda_low = 0;
+      wait(resetn);
+      
+      forever begin
+          // Espera start condition (SDA cai com SCL alto)
+          @(negedge i2c_sda);
+          wait(i2c_scl == 1);
+          $display("[TB SLAVE] Start Condition Detectado!");
 
-    @(negedge i2c_sda);
-    $display("[TB SLAVE] Start Condition Detectado!");
+          // Captura endereço
+          for (i=7; i>=0; i=i-1) begin
+              @(posedge i2c_scl);
+              captured_addr[i] = i2c_sda;
+          end
+          $display("[TB SLAVE] Endereco recebido: 0x%h", captured_addr);
 
-    for (i=7; i>=0; i=i-1)
-    begin
-      @(posedge i2c_scl);
-      captured_addr[i] = i2c_sda;
-    end
-    $display("[TB SLAVE] Endereco recebido: 0x%h", captured_addr);
+          // ACK do endereço
+          @(negedge i2c_scl);
+          tb_drive_sda_low = 1;   // ACK
+          @(negedge i2c_scl);
+          tb_drive_sda_low = 0;
 
-    @(negedge i2c_scl);
-    tb_drive_sda_low = 1;
-    @(negedge i2c_scl);
-    tb_drive_sda_low = 0;
+          // Captura dados
+          for (i=7; i>=0; i=i-1) begin
+              @(posedge i2c_scl);
+              captured_data[i] = i2c_sda;
+          end
+          $display("[TB SLAVE] Dado recebido: 0x%h", captured_data);
 
-    for (i=7; i>=0; i=i-1)
-    begin
-      @(posedge i2c_scl);
-      captured_data[i] = i2c_sda;
-    end
-    $display("[TB SLAVE] Dado recebido: 0x%h", captured_data);
+          // ACK do dado
+          @(negedge i2c_scl);
+          tb_drive_sda_low = 1;
+          @(negedge i2c_scl);
+          tb_drive_sda_low = 0;
 
-    @(negedge i2c_scl);
-    tb_drive_sda_low = 1;
-    @(negedge i2c_scl);
-    tb_drive_sda_low = 0;
-
-    @(posedge i2c_sda);
-    if (i2c_scl)
-      $display("[TB SLAVE] Stop Condition Detectado. Sucesso Total!");
+          // Espera stop
+          @(posedge i2c_sda);
+          if (i2c_scl)
+              $display("[TB SLAVE] Stop Condition Detectado. Sucesso Total!");
+      end
   end
 
   // =========================================================

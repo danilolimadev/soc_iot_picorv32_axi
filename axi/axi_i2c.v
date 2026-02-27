@@ -78,22 +78,17 @@ module axi_i2c (
                 s_axi_bvalid <= 0;
 
             else if (s_axi_awvalid && s_axi_wvalid && s_axi_awready && s_axi_wready) begin
-
-                // Endereço
-                if (s_axi_awaddr[5:2] == 4'h1) begin
-                    addr_reg <= s_axi_wdata;
-                    s_axi_bvalid <= 1;
-                    $display("[AXI_I2C] Endereco Configurado: 0x%h", s_axi_wdata);
-                end
-
                 // Dado → Inicia FSM
                 if (s_axi_awaddr[5:2] == 4'h2 && main_state == IDLE) begin
-                    data_reg <= s_axi_wdata;
+                    addr_reg <= s_axi_wdata[15:8];
+                    data_reg <= s_axi_wdata[7:0];
+
                     main_state <= START;
                     sub_state <= 0;
                     clk_div <= 0;
-                    busy <= 1;   // trava AXI
-                    $display("[AXI_I2C] Dado escrito: 0x%h. Iniciando...", s_axi_wdata);
+                    busy <= 1;
+                    $display("[AXI_I2C] Endereco Configurado: 0x%h", s_axi_wdata[15:8]);
+                    $display("[AXI_I2C] Dado escrito: 0x%h. Iniciando...", s_axi_wdata[7:0]);
                 end
             end
 
