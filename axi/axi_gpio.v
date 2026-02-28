@@ -55,9 +55,9 @@ module axi_gpio #(
             s_axi_arready  <= 1'b0;
             s_axi_rvalid   <= 1'b0;
 
-            awaddr_lat     <= '0;
+            awaddr_lat     <= 1'b0;
             awaddr_valid   <= 1'b0;
-            araddr_lat     <= '0;
+            araddr_lat     <= 1'b0;
 
             reg_gpio       <= 32'h0;
             gpio_out       <= 32'h0;
