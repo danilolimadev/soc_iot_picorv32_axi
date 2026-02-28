@@ -1,121 +1,247 @@
-# 🧩 PicoRV32 AXI SoC Full
+# SoC RISC-V com OpenLane
 
-Este projeto implementa um **System-on-Chip (SoC)** completo baseado no processador **PicoRV32**, utilizando uma **interconexão AXI4-Lite** para comunicação entre memória e periféricos.  
-Inclui módulos AXI para **GPIO**, **UART**, **SPI**, **I2C**, **TIMER** e **RAM**, além de uma **testbench funcional** e um **firmware de teste** (`firmware.hex`) carregado automaticamente na simulação.
+Este projeto descreve o desenvolvimento e a síntese física de um **System on Chip (SoC)** baseado no núcleo PicoRV32, utilizando o fluxo automatizado do OpenLane executado dentro de um container Docker.
+
+O objetivo é demonstrar o fluxo completo, desde a organização do HDL até a geração do layout físico do chip. O projeto foi implementado utilizando o PDK SkyWater Sky130, tecnologia CMOS de 130 nm que é de codigo aberto e possui grande documentação disponivel.
+
+A frequencia alvo de operação foi fixada em 50Mhz.
 
 ---
 
-## 🏗️ Estrutura do Projeto
+# Ambiente de Desenvolvimento
+
+Para garantir reprodutibilidade e consistência do fluxo de síntese, utilizamos o OpenLane executado dentro de um container Docker.
+
+## 🔹 Docker
+
+O Docker foi utilizado para:
+
+- Criar um ambiente isolado e controlado
+- Garantir compatibilidade entre versões das ferramentas
+- Evitar conflitos de dependências
+- Permitir portabilidade entre diferentes máquinas
+
+Com isso, todo o fluxo de síntese pode ser reproduzido de forma confiável.
+
+---
+
+# Fluxo de Síntese com OpenLane
+
+O OpenLane é um fluxo automatizado de design digital RTL-to-GDSII que integra diversas ferramentas de EDA.
+
+Abaixo estão as principais ferramentas utilizadas no processo:
+
+---
+
+## 🔹 Yosys – Síntese Lógica
+
+Responsável por:
+
+- Converter o código RTL (Verilog) em uma netlist lógica
+- Realizar otimizações iniciais
+- Remover lógica redundante
+- Preparar o design para as próximas etapas
+
+Entrada: Código RTL  
+Saída: Netlist otimizada
+
+---
+
+## 🔹 ABC – Otimização Lógica
+
+Ferramenta utilizada internamente pelo Yosys para:
+
+- Minimização lógica
+- Redução de área
+- Melhoria de timing
+- Balanceamento de portas lógicas
+
+---
+
+## 🔹 OpenROAD – Place and Route
+
+Responsável pelas etapas físicas do design:
+
+- Floorplanning
+- Placement (posicionamento das células)
+- Clock Tree Synthesis (CTS)
+- Routing (roteamento das interconexões)
+- Análise de timing (STA)
+
+---
+
+## 🔹 Magic – Verificação de Layout
+
+Utilizado para:
+
+- Visualização do layout físico
+- Verificação de regras de fabricação (DRC)
+- Geração do arquivo final GDSII
+
+---
+
+## 🔹 Netgen – LVS (Layout Versus Schematic)
+
+Ferramenta responsável por:
+
+- Comparar o layout físico com a netlist lógica
+- Garantir que o circuito implementado corresponde ao projeto original
+
+---
+
+# Estrutura do Projeto
+
+A organização do projeto foi planejada para permitir modularidade, reutilização e síntese independente das macros.
 
 ```
-picorv32_axi_soc_full/
-├── firmware.hex
-├── README.md
-├── test/
-│   └── tb_soc_top.v
-└── axi/
-    ├── axi_gpio.v
-    ├── axi_i2c.v
-    ├── axi_interconnect.v
-    ├── axi_ram.v
-    ├── axi_spi.v
-    ├── axi_timer.v
-    ├── axi_uart.v
-    ├── picorv32.v
-    ├── soc_top.v
-    ├── tb_soc_top.v
-    ├── uart_rx.v
-    └── uart_tx.v
+openlane/designs/
+├── picorv32_macro/        # Macro 1: Núcleo RISC-V
+├── axi_ram/               # Macro 2: Memória AXI
+│   ├── src/
+│   │   └── axi_ram.v
+│   └── config.json
+├── axi_peripherals/       # Macro 3: Interconnect + Periféricos
+│   ├── src/
+│   │   ├── axi_interconnect.v
+│   │   ├── axi_uart.v
+│   │   ├── boot_manager.v
+│   │   └── ...
+│   └── config.json
+└── soc_top/               # Top Level do SoC
+    ├── macros/            # Arquivos LEF, GDS, LIB, CFG e CDC das macros
+    ├── src/
+    │   └── soc_top.v
+    └── config.json
 ```
 
 ---
 
-## ⚙️ Descrição dos Principais Módulos
+## 🔹 picorv32_macro
 
-### 🔹 `soc_top.v`
-Integra o núcleo **PicoRV32**, a **interconexão AXI4-Lite**, a **memória RAM** e todos os **periféricos AXI** (GPIO, UART, SPI, I2C e TIMER).  
-Responsável pelo mapeamento de endereços e pela comunicação entre o processador e os periféricos.
-
-### 🔹 `axi_interconnect.v`
-Implementa o barramento **AXI4-Lite** que interliga o processador, a memória e os periféricos.  
-Realiza o roteamento das transações de leitura e escrita com base nos endereços.
-
-### 🔹 `axi_ram.v`
-Memória RAM interna acessada via AXI4-Lite.  
-Durante a simulação, carrega automaticamente o conteúdo do arquivo `firmware.hex`.
-
-### 🔹 `axi_gpio.v`
-Módulo de entrada/saída genérico controlado via AXI.  
-Permite escrita e leitura de registradores mapeados em memória.
-
-### 🔹 `axi_uart.v`
-Interface serial UART com registradores de transmissão (`uart_tx.v`) e recepção (`uart_rx.v`).  
-Simula a comunicação serial entre o SoC e dispositivos externos.
-
-### 🔹 `axi_spi.v`
-Controlador SPI compatível com AXI4-Lite, com registradores de controle, TX e RX.  
-Atualmente implementa comportamento de **loopback** para testes.
-
-### 🔹 `axi_i2c.v`
-Módulo AXI I2C simplificado (stub) com registradores de controle, TX e RX, também com loopback interno para verificação de acesso via AXI.
-
-### 🔹 `axi_timer.v`
-Temporizador simples com contador e registradores AXI.  
-Pode ser usado para gerar interrupções ou eventos temporizados em versões futuras.
+Contém o núcleo RISC-V responsável pela execução das instruções e controle do sistema.
 
 ---
 
-## 🧠 Mapa de Endereços
+## 🔹 axi_ram
 
-| Periférico | Endereço Base       |
-|-------------|--------------------|
-| RAM         | `0x0000_0000`      |
-| GPIO        | `0x1000_0000`      |
-| UART        | `0x2000_0000`      |
-| SPI         | `0x3000_0000`      |
-| I2C         | `0x4000_0000`      |
-| TIMER       | `0x5000_0000`      |
+Implementa a memória principal do SoC utilizando o protocolo AXI.
+
+- `axi_ram.v`: Implementação RTL
+- `config.json`: Parâmetros de síntese da macro
 
 ---
 
-## 🔬 Testbench (`tb_soc_top.v`)
+## 🔹 axi_peripherals
 
-A testbench fornece ambiente completo de simulação:
+Inclui:
 
-- Geração de **clock** e **reset**;
-- Inicialização da **memória RAM** com `firmware.hex`;
-- Observação das transações **AXI4-Lite** de leitura e escrita;
-- Validação de acesso aos periféricos GPIO, UART, SPI, I2C e TIMER;
-- Registro de sinais em arquivo **.vcd** para análise em simulador de forma de onda (ex: GTKWave).
+- Interconexão AXI
+- UART
+- Boot manager
+- Demais periféricos do sistema
 
----
-
-## 🧩 Firmware de Teste (`firmware.hex`)
-
-Arquivo em formato hexadecimal compatível com a inicialização da AXI RAM.  
-O programa executa instruções simples de escrita e leitura nos periféricos, validando o funcionamento do barramento AXI e das respostas dos módulos.
+Cada módulo é descrito em Verilog dentro da pasta `src/`.
 
 ---
 
-## ▶️ Simulação
+## 🔹 soc_top
 
-Para simular o SoC, utilize **Icarus Verilog** ou **ModelSim**:
+Módulo responsável por instanciar as três macros e interligá-las.
 
-```bash
-cd axi
-iverilog -o soc_tb tb_soc_top.v soc_top.v axi_*.v picorv32.v uart_*.v
-vvp soc_tb
+- `soc_top.v`: Integração completa do SoC
+- `macros/`: Arquivos físicos gerados das macros
+- `config.json`: Configurações globais do design
+
+---
+
+# Estratégia de Síntese Modular
+
+O desenvolvimento seguiu uma abordagem modular e incremental focada no reaproveitamento e otimização.
+
+---
+
+## 1️⃣ Síntese do PicoRV32
+
+Por ser modular e reutilizável, o PicoRV32 foi a primeira macro sintetizada.
+
+Isso permitiu:
+
+- Validar o núcleo do processador isoladamente
+- Garantir funcionamento correto antes da integração
+
+---
+
+## 2️⃣ Validação do HDL
+
+A estratégia adotada para validação foi:
+
+- Realizar uma primeira síntese utilizando parâmetros padrão (default)
+- Verificar ausência de erros
+- Confirmar consistência do código RTL
+
+Essa etapa garantiu que o HDL estivesse correto antes das otimizações.
+
+---
+
+## 3️⃣ Síntese das Demais Macros
+
+Após validar o núcleo, foram sintetizadas:
+
+- axi_ram
+- axi_peripherals
+
+Durante essa etapa foram coletadas métricas importantes:
+
+- Área ocupada
+- Análise estática de timing (STA)
+- Estimativas de desempenho
+
+Esses dados foram fundamentais para o planejamento físico do SoC. Cada macro gera um csv com o resume das metricas pico, axi_ram e axi_peri... 
+
+---
+
+# Planejamento do Layout do SoC
+
+Com os valores de área de cada macro, foi possível definir um floorplan inicial para dar forma física ao SoC.
+
+A disposição adotada foi:
+
+```
+ -----------
+|   1  |    |
+|------|  3 |
+|   2  |    |
+|      |    |
+ -----------
 ```
 
-Após a simulação, visualize o resultado:
+Legenda:
 
-```bash
-gtkwave dump.vcd
-```
+- **1** → PicoRV32  
+- **2** → axi_ram  
+- **3** → axi_peripherals  
 
-🧾 Licença
+Essa organização foi definida com base:
 
-Este projeto é distribuído sob a licença MIT.
-Sinta-se à vontade para estudar, modificar e expandir o SoC para fins educacionais e de pesquisa.
+- Na área de cada macro
+- Na proximidade lógica entre os blocos
+- Na otimização das interconexões
 
 ---
+
+# ✅ Conclusão
+
+A abordagem modular permitiu:
+
+- Desenvolvimento incremental
+- Validação isolada de cada bloco
+- Melhor controle de área e timing e consumo de energia
+- Integração organizada no top-level
+
+---
+
+ # Trabalhos Futuros
+
+ A partir dos resultados obtidos, abre-se espaço para a realização de otimizações mais refinadas no projeto, com foco no aprimoramento individual de cada macrobloco do sistema. Estudos futuros podem explorar ajustes mais detalhados nos parâmetros de síntese e place-and-route, visando melhorar métricas como área, densidade, consumo de potência e desempenho temporal (timing).
+
+Além disso, recomenda-se a avaliação de diferentes estratégias de distribuição da rede de alimentação (PDN), analisando o impacto na integridade de sinal, queda de tensão (IR drop) e robustez do layout. Também podem ser investigadas variações na organização física dos blocos (floorplanning), buscando topologias que reduzam congestionamento e melhorem o roteamento global.
