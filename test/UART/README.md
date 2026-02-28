@@ -10,7 +10,7 @@ O foco deste projeto foi garantir:
 
 ---
 
-## 🚀 Metodologia de Verificação
+## Metodologia de Verificação
 
 O ambiente utiliza uma abordagem de **Verificação Baseada em Simulação (SBV)**, empregando as seguintes técnicas:
 
@@ -33,7 +33,7 @@ O testbench compara automaticamente os valores recebidos com os esperados, repor
 
 ---
 
-## 🧪 Cobertura de Testes
+## Cobertura de Testes
 
 ### 1️⃣ Teste de Transmissão (CPU → AXI → TX)
 
@@ -73,7 +73,7 @@ Teste de robustez para medir a tolerância do receptor a variações na taxa de 
 
 ---
 
-## 🛠 Detalhes Técnicos do Ambiente
+## Detalhes Técnicos do Ambiente
 
 | Parâmetro            | Valor de Configuração |
 |----------------------|----------------------|
@@ -86,7 +86,7 @@ Teste de robustez para medir a tolerância do receptor a variações na taxa de 
 
 ---
 
-## 📈 Exemplo de Saída do Monitor
+## Exemplo de Saída do Monitor
 
 ```plaintext
 [START] Iniciando Testbench AXI-UART...
