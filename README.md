@@ -235,6 +235,8 @@ Essa organização foi definida com base:
 - Na proximidade lógica entre os blocos
 - Na otimização das interconexões
 
+Vista renderizada com a ferramenta Klayout
+
 ---
 
 # ✅ Conclusão
