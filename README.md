@@ -205,7 +205,7 @@ Tabela de resultados
 | axi_peripherals   | 0.872       | 53,779      | 3.33 | 111  | 85  | 193  | 71  | 855  | 216 | 59   | 8330 | 10.0            |
 | axi_ram           | 0.827       | 53,804      | 5.60 | 6    | 0   | 4    | 3   | 307  | 0   | 0    | 8212 | 10.0            |
 
-*O consumo global de todo sistema foi aproximadamente xxx mW.
+*O consumo global de todo sistema foi aproximadamente 120mW.
 
 ---
 # Planejamento do Layout do SoC
