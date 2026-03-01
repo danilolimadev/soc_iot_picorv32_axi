@@ -196,7 +196,7 @@ Durante essa etapa foram coletadas métricas importantes:
 - Análise estática de timing (STA)
 - Estimativas de desempenho
 
-Esses dados foram fundamentais para o planejamento físico do SoC. Cada macro gera um csv com o resume das metricas pico, axi_ram e axi_peri... 
+Esses dados foram fundamentais para o planejamento físico do SoC. Cada macro gera um csv com o resumo das metricas picorv32, axi_ram e axi_peripherals. 
 
 Tabela de resultados
 | design_name       | DIEAREA_mm² | CellPer_mm² | wns  | AND  | DFF | NAND | NOR | OR   | XOR | XNOR | MUX  | critical_path_ns |
