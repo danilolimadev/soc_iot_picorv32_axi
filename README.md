@@ -252,4 +252,4 @@ A abordagem modular permitiu:
 
  A partir dos resultados obtidos, abre-se espaço para a realização de otimizações mais refinadas no projeto, com foco no aprimoramento individual de cada macrobloco do sistema. Estudos futuros podem explorar ajustes mais detalhados nos parâmetros de síntese e place-and-route, visando melhorar métricas como área, densidade, consumo de potência e desempenho temporal (timing).
 
-Além disso, recomenda-se a avaliação de diferentes estratégias de distribuição da rede de alimentação (PDN), analisando o impacto na integridade de sinal, queda de tensão (IR drop) e robustez do layout. Também podem ser investigadas variações na organização física dos blocos (floorplanning), buscando topologias que reduzam congestionamento e melhorem o roteamento global.
+Além disso, realizar a avaliação de diferentes estratégias de distribuição da rede de alimentação (PDN), analisando o impacto na integridade de sinal, queda de tensão (IR drop) e robustez do layout. Também podem ser investigadas variações na organização física dos blocos (floorplanning), buscando topologias que reduzam congestionamento e melhorem o roteamento global.
