@@ -31,7 +31,7 @@ module soc_tb;
   // =========================================================
 
   wire uart_tx;
-  wire uart_rx;
+  reg uart_rx;
 
   wire spi_mosi, spi_miso, spi_sck, spi_cs;
 
@@ -101,11 +101,25 @@ module soc_tb;
 
   initial
   begin
+    uart_rx = 1; // linha idle
     wait(boot_mode);
     $display("\n[TB] Bootloader ativado...");
     wait(uut.boot_mgr.rom_done);
     boot_mode = 0;
     $display("[TB] ROM terminou de receber firmware!");
+
+    #3000000;
+
+    $display("[TB] Enviando byte 'A'");
+    uart_send_byte(8'h41);
+
+    #100000;
+
+    $display("[TB] Enviando byte 'B'");
+    uart_send_byte(8'h42);
+    #100000;
+    $stop;
+
   end
 
   // =========================================================
@@ -159,6 +173,27 @@ module soc_tb;
               $display("[TB SLAVE] Stop Condition Detectado. Sucesso Total!");
       end
   end
+
+  task uart_send_byte;
+    input [7:0] data;
+    integer i;
+    begin
+        // Start bit
+        uart_rx = 0;
+        #(400);
+
+        // Data bits
+        for (i=0; i<8; i=i+1)
+        begin
+            uart_rx = data[i];
+            #(400);
+        end
+
+        // Stop bit
+        uart_rx = 1;
+        #(400);
+    end
+  endtask
 
   // =========================================================
   // TIMEOUT GERAL
