@@ -198,8 +198,16 @@ Durante essa etapa foram coletadas métricas importantes:
 
 Esses dados foram fundamentais para o planejamento físico do SoC. Cada macro gera um csv com o resume das metricas pico, axi_ram e axi_peri... 
 
----
+Tabela de resultados
+| design_name       | DIEAREA_mm² | CellPer_mm² | wns  | AND  | DFF | NAND | NOR | OR   | XOR | XNOR | MUX  | critical_path_ns |
+|------------------|-------------|-------------|------|------|-----|------|-----|------|-----|------|------|-----------------|
+| picorv32          | 0.25        | 44,716      | 1.57 | 405  | 91  | 226  | 171 | 1045 | 388 | 113  | 2709 | 15.0            |
+| axi_peripherals   | 0.872       | 53,779      | 3.33 | 111  | 85  | 193  | 71  | 855  | 216 | 59   | 8330 | 10.0            |
+| axi_ram           | 0.827       | 53,804      | 5.60 | 6    | 0   | 4    | 3   | 307  | 0   | 0    | 8212 | 10.0            |
 
+*O consumo global de todo sistema foi aproximadamente xxx mW.
+
+---
 # Planejamento do Layout do SoC
 
 Com os valores de área de cada macro, foi possível definir um floorplan inicial para dar forma física ao SoC.
