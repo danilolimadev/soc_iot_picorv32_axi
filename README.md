@@ -199,11 +199,12 @@ Durante essa etapa foram coletadas métricas importantes:
 Esses dados foram fundamentais para o planejamento físico do SoC. Cada macro gera um csv com o resumo das metricas picorv32, axi_ram e axi_peripherals. 
 
 Tabela de resultados
-| design_name       | DIEAREA_mm² | CellPer_mm² | wns  | AND  | DFF | NAND | NOR | OR   | XOR | XNOR | MUX  | critical_path_ns |
-|------------------|-------------|-------------|------|------|-----|------|-----|------|-----|------|------|-----------------|
-| picorv32          | 0.25        | 44,716      | 1.57 | 405  | 91  | 226  | 171 | 1045 | 388 | 113  | 2709 | 15.0            |
-| axi_peripherals   | 0.872       | 53,779      | 3.33 | 111  | 85  | 193  | 71  | 855  | 216 | 59   | 8330 | 10.0            |
-| axi_ram           | 0.827       | 53,804      | 5.60 | 6    | 0   | 4    | 3   | 307  | 0   | 0    | 8212 | 10.0            |
+| design_name       | total_runtime | DIEAREA_mm² | CellPer_mm² | wns  | AND  | DFF | NAND | NOR | OR   | XOR | XNOR | MUX  | Fmax (MHz) |
+|------------------|--------------|-------------|-------------|------|------|-----|------|-----|------|-----|------|------|------------|
+| picorv32          | 0h20m11s     | 0.25        | 44,716      | 1.57 | 405  | 91  | 226  | 171 | 1045 | 388 | 113  | 2709 | 66.67      |
+| axi_peripherals   | 5h29m13s     | 0.872       | 53,779      | 3.33 | 111  | 85  | 193  | 71  | 855  | 216 | 59   | 8330 | 100.00     |
+| axi_ram           | 1h18m40s     | 0.827       | 53,804      | 5.60 | 6    | 0   | 4    | 3   | 307  | 0   | 0    | 8212 | 100.00     |
+| soc_top           | 0h33m27s     | 5.29        | 32.70       | 0.00 | 0    | 0   | 0    | 0   | 0    | 0   | 0    | 0    | 50.00      |
 
 *O consumo global de todo sistema foi aproximadamente 120mW.
 
@@ -216,9 +217,9 @@ A disposição adotada foi:
 
 ```
  -----------
-|   1  |    |
-|------|  3 |
 |   2  |    |
+|------|  1 |
+|   3  |    |
 |      |    |
  -----------
 ```
