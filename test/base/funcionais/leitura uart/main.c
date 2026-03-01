@@ -33,12 +33,14 @@ int main()
         char c = uart_getc();
 
         if (c == 'A')
-            GPIO_OUT = 0x2;
+            GPIO_OUT = 0xA;
         else if (c == 'B')
-            GPIO_OUT = 0x4;
+            GPIO_OUT = 0x5;
         else if (c == 'C')
             GPIO_OUT = 0x8;
-        else
+        else if (c == 'D')
+            GPIO_OUT = 0xF;
+        else 
             GPIO_OUT = 0x0;
     }
 }
