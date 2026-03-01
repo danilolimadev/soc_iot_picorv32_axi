@@ -5,24 +5,21 @@ module axi_spi (
     // AXI-Lite
     input  wire [11:0] s_axi_awaddr,
     input  wire        s_axi_awvalid,
-    output reg         s_axi_awready,
-
+    output wire        s_axi_awready,
     input  wire [31:0] s_axi_wdata,
     input  wire [3:0]  s_axi_wstrb,
     input  wire        s_axi_wvalid,
-    output reg         s_axi_wready,
-
-    output reg [1:0]   s_axi_bresp,
-    output reg         s_axi_bvalid,
+    output wire        s_axi_wready,
+    output wire [1:0]  s_axi_bresp,
+    output wire        s_axi_bvalid,
     input  wire        s_axi_bready,
 
     input  wire [11:0] s_axi_araddr,
     input  wire        s_axi_arvalid,
-    output reg         s_axi_arready,
-
-    output reg [31:0]  s_axi_rdata,
-    output reg [1:0]   s_axi_rresp,
-    output reg         s_axi_rvalid,
+    output wire        s_axi_arready,
+    output wire [31:0] s_axi_rdata,
+    output wire [1:0]  s_axi_rresp,
+    output wire        s_axi_rvalid,
     input  wire        s_axi_rready,
 
     // SPI
@@ -33,128 +30,118 @@ module axi_spi (
 );
 
     // ============================================================
-    // REGISTERS
+    // REGISTRADORES INTERNOS
     // ============================================================
-    reg        start_enable;   // habilita SPI
-    reg        tx_valid;       // dado pendente
-    reg [7:0]  txdata;
-    reg [7:0]  rxdata;
-    reg        spi_busy;
+    reg [7:0] tx_data_reg;
+    reg       tx_start_reg;
+    reg       busy;
+    reg       bvalid_reg;
+    reg [7:0] rx_data_reg;
 
-    // AXI responses OKAY
-    always @(*) begin
-        s_axi_bresp = 2'b00;
-        s_axi_rresp = 2'b00;
-    end
+    // SPI shift
+    reg [7:0] shift_tx, shift_rx;
+    reg [2:0] bit_cnt;
+    reg [7:0] clk_div;
+
+    wire tick = (clk_div == 8'd10);
 
     // ============================================================
-    // AXI WRITE (TRAVA SÓ QUANDO SPI ATIVO)
+    // AXI HANDSHAKE
     // ============================================================
-    always @(posedge clk) begin
+    assign s_axi_awready = !busy;
+    assign s_axi_wready  = !busy;
+    assign s_axi_bvalid  = bvalid_reg;
+    assign s_axi_bresp   = 2'b00;
+
+    assign s_axi_arready = 1'b1;
+    assign s_axi_rresp   = 2'b00;
+    assign s_axi_rvalid  = s_axi_arvalid;
+    assign s_axi_rdata   = (s_axi_araddr[3:0] == 4'h4) ? {24'b0, rx_data_reg} :
+                            (s_axi_araddr[3:0] == 4'h8) ? {30'b0, !busy} :
+                            32'h00000000;
+
+    // ============================================================
+    // ESCRITA AXI
+    // ============================================================
+    always @(posedge clk or negedge resetn) begin
         if (!resetn) begin
-            s_axi_awready <= 0;
-            s_axi_wready  <= 0;
-            s_axi_bvalid  <= 0;
-            start_enable  <= 0;
-            tx_valid      <= 0;
-            txdata        <= 0;
+            tx_data_reg  <= 8'b0;
+            tx_start_reg <= 1'b0;
+            busy         <= 1'b0;
+            bvalid_reg   <= 1'b0;
         end else begin
-            s_axi_awready <= s_axi_awvalid && !s_axi_bvalid && !spi_busy;
-            s_axi_wready  <= s_axi_wvalid  && !s_axi_bvalid && !spi_busy;
+            tx_start_reg <= 1'b0;
 
-            if (s_axi_awready && s_axi_wready) begin
-                case (s_axi_awaddr[5:2])
-                    4'h0: start_enable <= s_axi_wdata[0];   // START
-                    4'h1: begin                            // TXDATA
-                        txdata   <= s_axi_wdata[7:0];
-                        tx_valid <= 1'b1;
-                    end
-                endcase
-                s_axi_bvalid <= 1'b1;
+            // aceita escrita só se SPI estiver livre
+            if (!busy &&
+                s_axi_awvalid && s_axi_wvalid &&
+                s_axi_awaddr[3:0] == 4'h0)  // endereço TXDATA
+            begin
+                tx_data_reg  <= s_axi_wdata[7:0];
+                tx_start_reg <= 1'b1;
+                //busy         <= 1'b1;
+                bvalid_reg   <= 1'b1;
             end
 
-            if (s_axi_bvalid && s_axi_bready)
-                s_axi_bvalid <= 1'b0;
-
-            // consome dado quando SPI inicia
-            if (spi_busy)
-                tx_valid <= 1'b0;
-        end
-    end
-
-    // ============================================================
-    // AXI READ
-    // ============================================================
-    always @(posedge clk) begin
-        if (!resetn) begin
-            s_axi_arready <= 0;
-            s_axi_rvalid  <= 0;
-            s_axi_rdata   <= 0;
-        end else begin
-            s_axi_arready <= s_axi_arvalid && !s_axi_rvalid;
-
-            if (s_axi_arready) begin
-                case (s_axi_araddr[5:2])
-                    4'h0: s_axi_rdata <= {29'd0, tx_valid, spi_busy, start_enable};
-                    4'h1: s_axi_rdata <= {24'd0, txdata};
-                    4'h2: s_axi_rdata <= {24'd0, rxdata};
-                    default: s_axi_rdata <= 32'hDEADBEEF;
-                endcase
-                s_axi_rvalid <= 1'b1;
-            end
-
-            if (s_axi_rvalid && s_axi_rready)
-                s_axi_rvalid <= 1'b0;
+            // Mestre aceitou resposta AXI
+            if (bvalid_reg && s_axi_bready)
+                bvalid_reg <= 1'b0;
         end
     end
 
     // ============================================================
     // SPI MASTER MODE 0
     // ============================================================
-    reg [7:0] shift_tx, shift_rx;
-    reg [2:0] bit_cnt;
-    reg [7:0] clk_div;
-
-    wire tick = (clk_div == 8'd10);
-    wire start_spi = start_enable && tx_valid && !spi_busy;
-
-    always @(posedge clk) begin
+    always @(posedge clk or negedge resetn) begin
         if (!resetn) begin
             spi_cs   <= 1;
             spi_sck  <= 0;
             spi_mosi <= 0;
-            spi_busy <= 0;
+            busy     <= 0;
             clk_div  <= 0;
-            rxdata   <= 0;
+            shift_tx <= 0;
+            shift_rx <= 0;
+            bit_cnt  <= 0;
+            rx_data_reg <= 0;
         end else begin
-            clk_div <= spi_busy ? clk_div + 1 : 0;
+            // clock divider
+            if (busy)
+                clk_div <= clk_div + 1;
+            else
+                clk_div <= 0;
 
-            if (start_spi) begin
-                spi_busy <= 1;
-                spi_cs   <= 0;
-                spi_sck  <= 0;
-                bit_cnt  <= 3'd7;
-                shift_tx <= txdata;
-                shift_rx <= 0;
-                spi_mosi <= txdata[7];
+            // iniciar SPI
+            if (tx_start_reg && !busy) begin
+                busy      <= 1;
+                spi_cs    <= 0;
+                spi_sck   <= 0;
+                shift_tx  <= tx_data_reg;
+                shift_rx  <= 0;
+                bit_cnt   <= 3'd7;
+                spi_mosi  <= tx_data_reg[7]; // MSB primeiro
             end
 
-            if (spi_busy && tick) begin
+            // envio de bits
+            if (busy && tick) begin
                 spi_sck <= ~spi_sck;
 
                 if (!spi_sck) begin
+                    // captura MISO na falling edge
                     shift_rx <= {shift_rx[6:0], spi_miso};
 
                     if (bit_cnt == 0) begin
-                        spi_busy <= 0;
-                        spi_cs   <= 1;
-                        spi_sck  <= 0;
-                        rxdata   <= {shift_rx[6:0], spi_miso};
-                    end else
+                        busy       <= 0;
+                        spi_cs     <= 1;
+                        spi_sck    <= 0;
+                        rx_data_reg <= {shift_rx[6:0], spi_miso};
+                        clk_div    <= 0;
+                    end else begin
                         bit_cnt <= bit_cnt - 1;
+                    end
                 end else begin
-                    shift_tx <= {shift_tx[6:0], 1'b0};
+                    // envia MOSI no rising edge
                     spi_mosi <= shift_tx[6];
+                    shift_tx <= {shift_tx[6:0], 1'b0};
                 end
             end
         end
