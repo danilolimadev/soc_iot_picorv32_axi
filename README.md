@@ -200,11 +200,11 @@ Esses dados foram fundamentais para o planejamento físico do SoC. Cada macro ge
 
 Tabela de resultados
 | design_name       | total_runtime | DIEAREA_mm² | CellPer_mm² | wns  | AND  | DFF | NAND | NOR | OR   | XOR | XNOR | MUX  | Fmax (MHz) |
-|------------------|--------------|-------------|-------------|------|------|-----|------|-----|------|-----|------|------|------------|
-| picorv32          | 0h20m11s     | 0.25        | 44,716      | 1.57 | 405  | 91  | 226  | 171 | 1045 | 388 | 113  | 2709 | 66.67      |
-| axi_peripherals   | 5h29m13s     | 0.872       | 53,779      | 3.33 | 111  | 85  | 193  | 71  | 855  | 216 | 59   | 8330 | 100.00     |
-| axi_ram           | 1h18m40s     | 0.827       | 53,804      | 5.60 | 6    | 0   | 4    | 3   | 307  | 0   | 0    | 8212 | 100.00     |
-| soc_top           | 0h33m27s     | 5.29        | 32.70       | 0.00 | 0    | 0   | 0    | 0   | 0    | 0   | 0    | 0    | 50.00      |
+|--------------------|--------------|-------------|-------------|------|------|-----|------|-----|------|-----|------|------|------------|
+| picorv32           | 0h20m11s     | 0.25        | 44,716      | 1.57 | 405  | 91  | 226  | 171 | 1045 | 388 | 113  | 2709 | 66.67      |
+| axi_peripherals    | 5h29m13s     | 0.872       | 53,779      | 3.33 | 111  | 85  | 193  | 71  | 855  | 216 | 59   | 8330 | 100.00     |
+| axi_ram            | 1h18m40s     | 0.827       | 53,804      | 5.60 | 6    | 0   | 4    | 3   | 307  | 0   | 0    | 8212 | 100.00     |
+| soc_top            | 0h31m10s     | 4.84        | 35.12       | 0.00 | 0    | 0   | 0    | 0   | 0    | 0   | 0    | 0    | 50.00      |
 
 *O consumo global de todo sistema foi aproximadamente 120mW.
 
@@ -237,7 +237,7 @@ Essa organização foi definida com base:
 - Na otimização das interconexões
 
 Vista renderizada com a ferramenta Klayout
-<img width="1080" height="712" alt="image" src="https://github.com/user-attachments/assets/f77abe89-75ab-46f2-9637-896fcbdbeb51" />
+<img width="735" height="705" alt="image" src="https://github.com/user-attachments/assets/9aafce66-b1ac-4708-aea1-607c63846b4f" />
 
 ---
 
