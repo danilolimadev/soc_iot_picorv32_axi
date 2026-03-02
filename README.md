@@ -237,7 +237,7 @@ Essa organização foi definida com base:
 - Na otimização das interconexões
 
 Vista renderizada com a ferramenta Klayout
-<img width="735" height="705" alt="image" src="https://github.com/user-attachments/assets/9aafce66-b1ac-4708-aea1-607c63846b4f" />
+<img width="854" height="713" alt="image" src="https://github.com/user-attachments/assets/1f0c6895-efce-4257-ab23-c0b51298ab20" />
 
 ---
 
