@@ -17,13 +17,11 @@ module soc_tb;
   initial
   begin
     resetn   = 0;
-    boot_mode = 0;
+    boot_mode = 1;
     #200;
     resetn   = 1;
 
-    // Ativa modo boot após reset
-    #100;
-    boot_mode = 1;
+
   end
 
   // =========================================================
@@ -65,7 +63,7 @@ module soc_tb;
   wire [31:0] firmware_size;
 
   bootloader_uart #(
-                    .FIRMWARE_FILE("firmware.hex")
+                    .FIRMWARE_FILE("/home/menezes/soc_iot_picorv32_axi/test/base/funcionais/leitura uart/firmware.hex")
                   ) tb_boot (
                     .clk(clk),
                     .resetn(resetn),
@@ -99,14 +97,23 @@ module soc_tb;
   // MONITOR DE BOOT
   // =========================================================
 
-  initial
-  begin
+  initial begin
+    if (boot_mode == 0) begin
+      $display("[TB] Modo boot desativado. CPU irá resetar normalmente.");
+      $readmemh("/home/menezes/soc_iot_picorv32_axi/test/base/funcionais/leitura uart/firmware.hex", uut.boot_mgr.rom_receiver_inst.rom_mem);
+    end else begin
+      wait(boot_mode);
+      $display("\n[TB] Bootloader ativado...");
+      wait(uut.boot_mgr.rom_done);
+      boot_mode = 0;
+      $display("[TB] ROM terminou de receber firmware!");
+    end  
+  end
+
+  initial begin
     uart_rx = 1; // linha idle
-    wait(boot_mode);
-    $display("\n[TB] Bootloader ativado...");
-    wait(uut.boot_mgr.rom_done);
-    boot_mode = 0;
-    $display("[TB] ROM terminou de receber firmware!");
+
+    wait (uut.boot_mgr.done);
 
     #3000000;
 

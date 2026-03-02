@@ -70,6 +70,7 @@ module soc_top (
   wire boot_we;
   wire [31:0] boot_addr;
   wire [31:0] boot_wdata;
+  wire        boot_done;
   wire cpu_resetn;
 
   boot_manager #(
@@ -78,6 +79,7 @@ module soc_top (
                  .clk(clk),
                  .resetn(resetn),
                  .boot_mode(boot_mode),
+                 .done(boot_done),
 
                  .uart_rx(uart_rx_boot),
                  .firmware_size(firmware_size),

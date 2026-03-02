@@ -10,11 +10,14 @@ module boot_manager #(
     output reg         boot_we,
     output reg [31:0]  boot_addr,
     output reg [31:0]  boot_wdata,
-    output wire        cpu_resetn
+    output wire        cpu_resetn,
+    output reg         done
 );
 
   wire rom_done;
 
+  wire uart_rom_receiver_resetn = resetn & boot_mode; // Reseta o receiver quando não estiver no modo boot
+  
   uart_rom_receiver #(
       .CLK_FREQ(50_000_000),
       .BAUD_RATE(115200),
@@ -45,6 +48,7 @@ module boot_manager #(
       copy_state <= COPY_IDLE;
       copy_index <= 0;
       boot_we    <= 0;
+      done       <= 0;
     end else begin
 
       boot_we <= 0;
@@ -54,7 +58,7 @@ module boot_manager #(
         COPY_IDLE: begin
           copy_index <= 0;
 
-          if (!boot_mode && rom_done)
+          if (!boot_mode)
             copy_state <= COPY_RUN;
         end
 
@@ -71,6 +75,7 @@ module boot_manager #(
 
         COPY_DONE: begin
           boot_we <= 0;
+          done <= 1;
         end
 
       endcase
