@@ -17,7 +17,7 @@ module soc_tb;
   initial
   begin
     resetn   = 0;
-    boot_mode = 1;
+    boot_mode = 0;
     #200;
     resetn   = 1;
 
@@ -100,7 +100,7 @@ module soc_tb;
   initial begin
     if (boot_mode == 0) begin
       $display("[TB] Modo boot desativado. CPU irá resetar normalmente.");
-      $readmemh("/home/menezes/soc_iot_picorv32_axi/test/base/funcionais/leitura uart/firmware.hex", uut.boot_mgr.rom_receiver_inst.rom_mem);
+      $readmemh("firmware.hex", uut.boot_mgr.rom_receiver_inst.rom_mem);
     end else begin
       wait(boot_mode);
       $display("\n[TB] Bootloader ativado...");
@@ -132,7 +132,7 @@ module soc_tb;
 
     $display("[TB] Enviando byte 'D'");
     uart_send_byte(8'h44);
-    #100000;
+    #200000;
     $stop;
 
   end
