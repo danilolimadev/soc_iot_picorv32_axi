@@ -117,11 +117,11 @@ module soc_tb;
 
     $display("[TB] Enviando byte 'B'");
     uart_send_byte(8'h42);
-    #100000;
+    #1300000;
 
     $display("[TB] Enviando byte 'C'");
     uart_send_byte(8'h43);
-    #100000;
+    #200000;
 
     $display("[TB] Enviando byte 'D'");
     uart_send_byte(8'h44);
