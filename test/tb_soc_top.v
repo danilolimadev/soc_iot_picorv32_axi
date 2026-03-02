@@ -63,7 +63,7 @@ module soc_tb;
   wire [31:0] firmware_size;
 
   bootloader_uart #(
-                    .FIRMWARE_FILE("/home/menezes/soc_iot_picorv32_axi/test/base/funcionais/leitura uart/firmware.hex")
+                    .FIRMWARE_FILE("firmware.hex")
                   ) tb_boot (
                     .clk(clk),
                     .resetn(resetn),
