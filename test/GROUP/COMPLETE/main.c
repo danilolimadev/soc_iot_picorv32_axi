@@ -67,9 +67,10 @@ int main()
             I2C_REG = (addr << 8) | 0x11;
             I2C_REG = (addr << 8) | 0x22;
             I2C_REG = (addr << 8) | 0x33;
-        } else if (c == 'D')
+        } else if (c == 'D'){
             GPIO_OUT = 0xF;
-        else 
+            uart_print("DD\n");
+        }else 
             GPIO_OUT = 0x0;
     }
 }

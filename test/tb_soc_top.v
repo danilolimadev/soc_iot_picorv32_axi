@@ -125,7 +125,7 @@ module soc_tb;
 
     $display("[TB] Enviando byte 'D'");
     uart_send_byte(8'h44);
-    #100000;
+    #200000;
     $stop;
 
   end
