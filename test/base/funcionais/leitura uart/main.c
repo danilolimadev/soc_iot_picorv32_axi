@@ -1,0 +1,75 @@
+#include <stdint.h>
+
+#define UART_BASE   0x20000000
+#define UART_TXDATA (*(volatile uint32_t*)(UART_BASE + 0x00))
+#define UART_RXDATA (*(volatile uint32_t*)(UART_BASE + 0x04))
+#define UART_STATUS (*(volatile uint32_t*)(UART_BASE + 0x08))
+
+#define GPIO_BASE   0x10000000
+#define GPIO_OUT    (*(volatile uint32_t*)(GPIO_BASE + 0x00))
+
+#define SPI_BASE    0x30000000
+#define SPI_DATA    (*(volatile uint32_t*)(SPI_BASE + 0x00))
+#define SPI_STATUS  (*(volatile uint32_t*)(SPI_BASE + 0x04))
+
+#define AXI_I2C_BASE   0x40000000
+#define I2C_REG        (*(volatile uint32_t *)(AXI_I2C_BASE + 0x08))
+
+void uart_putc(char c)
+{
+    while (!(UART_STATUS & 0x1));  // espera TX ready
+    UART_TXDATA = c;
+}
+
+void uart_print(const char *s)
+{
+    while (*s)
+        uart_putc(*s++);
+}
+
+char uart_getc()
+{
+    while (!(UART_STATUS & 0x2));  // espera RX valid
+    return (char)(UART_RXDATA & 0xFF);
+}
+
+// envia 1 byte pela SPI
+void spi_send(uint8_t b)
+{
+    while (SPI_STATUS & 0x1); // espera SPI pronta
+    SPI_DATA = b;
+}
+
+// exemplo simples: envia um array de bytes
+void spi_send_bytes(const uint8_t *buf, int len)
+{
+    for (int i=0; i<len; i++)
+        spi_send(buf[i]);
+}
+
+int main()
+{
+    uart_print("UART RX -> GPIO demo\r\n");
+
+    while (1)
+    {
+        char c = uart_getc();
+
+        if (c == 'A')
+            GPIO_OUT = 0xA;
+        else if (c == 'B') {
+            GPIO_OUT = 0x5;
+            uint8_t data[] = {0x67, 0x6F, 0x6F, 0x64, 0x20, 0x6D, 0x6F, 0x72, 0x6E, 0x69, 0x6E, 0x67, 0x20, 0x77, 0x6F, 0x72, 0x6C, 0x64};
+            spi_send_bytes(data, 18);
+        } else if (c == 'C') {
+            GPIO_OUT = 0x8;
+            uint8_t addr = (0x50 << 1);  // write
+            I2C_REG = (addr << 8) | 0x11;
+            I2C_REG = (addr << 8) | 0x22;
+            I2C_REG = (addr << 8) | 0x33;
+        } else if (c == 'D')
+            GPIO_OUT = 0xF;
+        else 
+            GPIO_OUT = 0x0;
+    }
+}

@@ -1,43 +1,89 @@
-`ifndef SOC_TEST
-`define SOC_TEST
+`ifndef soc_test_SV
+`define soc_test_SV
 
-    import uvm_pkg::*;
-    `include "uvm_macros.svh"
-    `include "soc_env.sv"
-    `include "soc_sequence.sv"
+import uvm_pkg::*;
+`include "uvm_macros.svh"
 
-    class soc_test extends uvm_test;
-        `uvm_component_utils(soc_test)
+`include "environment.sv"
+`include "sequence.sv"
 
-        soc_env env_h;
-
-        function new(string name, uvm_component parent);
-            super.new(name, parent);
-        endfunction : new
-
-        function void build_phase(uvm_phase phase);
-            super.build_phase(phase);
-            
-            uvm_config_db#(uvm_active_passive_enum)::set(this, "env_h.agent_h", "is_active", UVM_ACTIVE);
-            env_h = soc_env::type_id::create("env_h", this);
-
-        endfunction : build_phase
-
-        task run_phase(uvm_phase phase);
-
-            soc_sequence seq_h;
-
-            phase.raise_objection(this);
-            
-            seq_h = soc_sequence::type_id::create("seq_h");
-            `uvm_info(get_full_name(), "Starting soc_sequence on sequencer...", UVM_LOW)
-
-            seq_h.start(env_h.agent_h.sequencer_h);
-            #100ns;
-
-            phase.drop_objection(this);
-        endtask : run_phase
+// =============================================================================
+// Base Test
+// =============================================================================
+class soc_base_test extends uvm_test;
+    `uvm_component_utils(soc_base_test)
+    
+    soc_env env;
+    
+    function new(string name = "soc_base_test", uvm_component parent = null);
+        super.new(name, parent);
+    endfunction
+    
+    function void build_phase(uvm_phase phase);
+        super.build_phase(phase);
         
-    endclass
+        // Create environment
+        env = soc_env::type_id::create("env", this);
 
-`endif
+    endfunction
+    
+    task run_phase(uvm_phase phase);
+        `uvm_info("soc_base_test", "Starting base_test...", UVM_LOW)
+    endtask
+endclass : soc_base_test
+
+// =============================================================================
+// UART Focused Test
+// =============================================================================
+class soc_uart_test extends soc_base_test;
+    `uvm_component_utils(soc_uart_test)
+    
+    function new(string name = "soc_uart_test", uvm_component parent = null);
+        super.new(name, parent);
+    endfunction
+    
+    task run_phase(uvm_phase phase);
+        uart_seq seq;
+        
+        phase.raise_objection(this);
+        
+        seq = uart_seq::type_id::create("seq");
+        `uvm_info("UART TEST", "Starting uart_sequence on sequencer...", UVM_LOW)
+        seq.start(env.uart_agt.sequencer);
+        
+        #10us;
+        phase.drop_objection(this);
+    endtask
+endclass : soc_uart_test
+
+// // =============================================================================
+// // I2C Focused Test
+// // =============================================================================
+// class soc_i2c_test extends soc_base_test;
+//     `uvm_component_utils(soc_i2c_test)
+    
+//     function new(string name = "soc_i2c_test", uvm_component parent = null);
+//         super.new(name, parent);
+//         `uvm_info("I2C TEST", "NEW", UVM_LOW)
+//     endfunction
+    
+//     task run_phase(uvm_phase phase);
+//         i2c_slave_seq seq;
+        
+//         `uvm_info("I2C TEST", "RUN: started", UVM_LOW);
+
+//         phase.raise_objection(this);
+        
+//         seq = i2c_slave_seq::type_id::create("seq");
+//         `uvm_info("I2C TEST", "criou seqeunce", UVM_LOW);
+
+//         seq.start(env.i2c_agt.sequencer);
+//         `uvm_info("I2C TEST", "started", UVM_LOW);
+//         #5us;
+//         phase.drop_objection(this);
+
+//         `uvm_info("I2C TEST", "RUN: finished", UVM_LOW)
+//     endtask
+// endclass : soc_i2c_test
+
+`endif // soc_test_SV

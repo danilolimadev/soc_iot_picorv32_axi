@@ -2,20 +2,25 @@ ENTRY(_start)
 
 MEMORY
 {
-  RAM (rwx) : ORIGIN = 0x00000000, LENGTH = 64K
+    RAM (rwx) : ORIGIN = 0x00000000, LENGTH = 4K
 }
 
 SECTIONS
 {
-  .text : {
-    *(.text.start*)
-    *(.text*)
-    *(.rodata*)
-  } > RAM
+    .text : {
+        *(.text*)
+        *(.rodata*)
+    } > RAM
 
-  .data : { *(.data*) } > RAM
-  .bss  : { *(.bss*) *(COMMON) } > RAM
+    .data : {
+        *(.data*)
+    } > RAM
 
-  . = ALIGN(16);
-  _stack_top = ORIGIN(RAM) + LENGTH(RAM);
+    .bss : {
+        *(.bss*)
+        *(COMMON)
+    } > RAM
+
+    . = ORIGIN(RAM) + LENGTH(RAM);
+    _stack_top = .;
 }
