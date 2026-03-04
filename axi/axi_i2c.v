@@ -87,8 +87,6 @@ module axi_i2c (
                     sub_state <= 0;
                     clk_div <= 0;
                     busy <= 1;
-                    $display("[AXI_I2C] Endereco Configurado: 0x%h", s_axi_wdata[15:8]);
-                    $display("[AXI_I2C] Dado escrito: 0x%h. Iniciando...", s_axi_wdata[7:0]);
                 end
             end
 
@@ -119,7 +117,6 @@ module axi_i2c (
                                 sda_drive_low <= 1;
                                 scl_drive_low <= 0;
                                 sub_state <= 1;
-                                $display("[I2C] START");
                             end else begin
                                 scl_drive_low <= 1;
                                 bit_cnt <= 7;
@@ -171,7 +168,6 @@ module axi_i2c (
                                 2: begin
                                     sda_drive_low <= 0;
                                     sub_state <= 3;
-                                    $display("[I2C] STOP");
                                 end
                                 3: begin
                                     main_state <= IDLE;
