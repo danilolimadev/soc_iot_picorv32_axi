@@ -33,6 +33,30 @@ class soc_base_test extends uvm_test;
 endclass : soc_base_test
 
 // =============================================================================
+// BOOTLOADER Focused Test
+// =============================================================================
+class soc_bootloader_test extends soc_base_test;
+    `uvm_component_utils(soc_bootloader_test)
+    
+    function new(string name = "soc_bootloader_test", uvm_component parent = null);
+        super.new(name, parent);
+    endfunction
+    
+    task run_phase(uvm_phase phase);
+        bootloader_seq seq;
+        
+        phase.raise_objection(this);
+        
+        seq = bootloader_seq::type_id::create("seq");
+        `uvm_info("BOOTLOADER TEST", "Starting bootloader_sequence on sequencer...", UVM_LOW)
+        seq.start(env.bootloader_agt.sequencer);
+        
+        #60ms;
+        phase.drop_objection(this);
+    endtask
+endclass : soc_bootloader_test
+
+// =============================================================================
 // UART Focused Test
 // =============================================================================
 class soc_uart_test extends soc_base_test;
@@ -85,5 +109,28 @@ endclass : soc_uart_test
 //         `uvm_info("I2C TEST", "RUN: finished", UVM_LOW)
 //     endtask
 // endclass : soc_i2c_test
+
+// =============================================================================
+// COMPLETE Focused Test
+// =============================================================================
+class soc_complete_test extends soc_base_test;
+    `uvm_component_utils(soc_complete_test)
+    
+    function new(string name = "soc_complete_test", uvm_component parent = null);
+        super.new(name, parent);
+    endfunction
+    
+    task run_phase(uvm_phase phase);
+        soc_virtual_seq seq;
+        
+        phase.raise_objection(this);
+        
+        seq = soc_virtual_seq::type_id::create("seq");
+        seq.start(env.virtual_seqr);
+        
+        #10ms;
+        phase.drop_objection(this);
+    endtask
+endclass : soc_complete_test
 
 `endif // soc_test_SV

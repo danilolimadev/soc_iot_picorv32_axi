@@ -9,6 +9,10 @@ interface soc_bfm;
     bit resetn;
     bit clk;
 
+    // Bootloader Signals
+    bit boot_done;
+    bit boot_mode;
+
     // Debug signals
     bit        trap;
     bit [31:0] gpio_out;
@@ -25,11 +29,11 @@ interface soc_bfm;
     bit        spi_cs;
     
     // I2C signals
-    wire        i2c_scl; // só o soc (master) controla o clock
+    wire       i2c_scl; // só o soc (master) controla o clock
 
-    wire        i2c_sda;
-    bit       i2c_sda_oe;
-    bit       i2c_sda_out;
+    wire       i2c_sda;
+    bit        i2c_sda_oe;
+    bit        i2c_sda_out;
     assign i2c_sda = i2c_sda_oe ? i2c_sda_out : 1'bz;
 
     // task to generate clock signal

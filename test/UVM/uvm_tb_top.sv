@@ -11,20 +11,22 @@ module uvm_tb_top;
    
    soc_bfm  bfm();
 
-    soc_top dut (
-        .clk(bfm.clk),
-        .resetn(bfm.resetn),
-        .trap(bfm.trap),
-        .gpio_out(bfm.gpio_out),
-        .timer_irq(bfm.timer_irq),
-        .uart_tx(bfm.uart_rx),
-        .uart_rx(bfm.uart_tx),
-        .spi_mosi(bfm.spi_mosi),
-        .spi_miso(bfm.spi_miso),
-        .spi_sck(bfm.spi_sck),
-        .spi_cs(bfm.spi_cs),
-        .i2c_sda(bfm.i2c_sda),
-        .i2c_scl(bfm.i2c_scl)
+    soc_bootloader_complete DUT(
+        .clk       (bfm.clk),
+        .resetn    (bfm.resetn),
+        .boot_mode (bfm.boot_mode),
+        .boot_done (bfm.boot_done),
+        .trap      (bfm.trap),
+        .gpio_out  (bfm.gpio_out),
+        .timer_irq (bfm.timer_irq),
+        .uart_tx   (bfm.uart_rx),
+        .uart_rx   (bfm.uart_tx),
+        .spi_mosi  (bfm.spi_mosi),
+        .spi_miso  (bfm.spi_miso),
+        .spi_sck   (bfm.spi_sck),
+        .spi_cs    (bfm.spi_cs),
+        .i2c_sda   (bfm.i2c_sda),
+        .i2c_scl   (bfm.i2c_scl)
     );
 
     initial
@@ -41,6 +43,7 @@ module uvm_tb_top;
     initial
     begin
         fork
+        bfm.uart_tx = 1; // garantir que inicialmente está em 1
         bfm.generate_clock(CLK_FREQ);
         bfm.reset_pulse(0, 5, "Sync", 1);
         join_none

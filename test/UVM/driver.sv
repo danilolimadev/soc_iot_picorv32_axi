@@ -7,6 +7,72 @@ import uvm_pkg::*;
 `include "transaction.sv"
 
 // =============================================================================
+// BOOTLOADER Driver
+// =============================================================================
+class bootloader_driver extends uvm_driver #(bootloader_transaction);
+    `uvm_component_utils(bootloader_driver)
+
+    virtual soc_bfm bfm;
+
+    // constructor
+    function new(string name = "bootloader_driver", uvm_component parent = null);
+        super.new(name, parent);
+        //`uvm_info("BOOTLOADER DRIVER", "NEW", UVM_LOW)
+    endfunction : new
+
+    // build phase
+    function void build_phase(uvm_phase phase);
+        super.build_phase(phase);
+        if (!uvm_config_db#(virtual soc_bfm)::get(this, "", "bfm", bfm))
+            `uvm_fatal("NO_BFM", "BFM not set via uvm_config_db");
+
+        //`uvm_info("BOOTLOADER DRIVER", "BUILD", UVM_LOW)
+    endfunction : build_phase
+
+    // run phase
+    task run_phase(uvm_phase phase);
+        bootloader_transaction item;
+
+        //`uvm_info("BOOTLOADER DRIVER", "RUN: started", UVM_LOW);
+
+        seq_item_port.get_next_item(item);
+
+        `uvm_info("BOOTLOADER DRIVER", $sformatf("Driving BOOTLOADER mode: 0x%h", item.boot_mode), UVM_LOW)
+
+        send_mode(item);
+
+        seq_item_port.item_done();
+
+        `uvm_info("BOOTLOADER DRIVER", "RUN: finished", UVM_LOW)
+
+    endtask : run_phase
+
+    task send_mode(bootloader_transaction item);
+        //`uvm_info("BOOTLOADER DRIVER", "Send mode", UVM_HIGH)
+        bit timed_out = 0;
+        uvm_event ev_boot_done = uvm_event_pool::get_global("ev_boot_done");
+
+        bfm.boot_mode = item.boot_mode;
+
+        `uvm_info("BOOTLOADER DRIVER", $sformatf("Mode enviado: 0x%h", item.boot_mode), UVM_HIGH)
+
+        fork
+        begin
+            ev_boot_done.wait_trigger();
+            bfm.boot_mode = 1'b0;
+            `uvm_info("BOOTLOADER DRIVER", "boot_done recebido!", UVM_NONE)
+        end
+        begin
+            #(100ms);
+            timed_out = 1;
+            `uvm_error("BOOTLOADER DRIVER", "Timeout! boot_done não chegou em 100ms")
+        end
+        join_any
+        disable fork;
+    endtask
+endclass : bootloader_driver
+
+// =============================================================================
 // I2C Driver
 // =============================================================================
 class i2c_driver extends uvm_driver #(i2c_transaction);
@@ -244,18 +310,20 @@ class uart_driver extends uvm_driver #(uart_transaction);
     task run_phase(uvm_phase phase);
         uart_transaction item;
 
-        `uvm_info("UART DRIVER", "RUN: started", UVM_LOW);
+        forever
+        begin
+            //`uvm_info("UART DRIVER", "RUN: started", UVM_LOW);
 
-        seq_item_port.get_next_item(item);
+            seq_item_port.get_next_item(item);
 
-        `uvm_info("UART DRIVER", $sformatf("Driving UART command: 0x%h", item.data_sent), UVM_LOW)
+            //`uvm_info("UART DRIVER", $sformatf("Driving UART command: 0x%h", item.data_sent), UVM_LOW)
 
-        send_command(item);
+            send_command(item);
 
-        seq_item_port.item_done();
+            seq_item_port.item_done();
 
-        `uvm_info("UART DRIVER", "RUN: finished", UVM_LOW)
-
+            //`uvm_info("UART DRIVER", "RUN: finished", UVM_LOW)
+        end
     endtask : run_phase
     
     function void report_phase(uvm_phase phase);
@@ -265,13 +333,17 @@ class uart_driver extends uvm_driver #(uart_transaction);
     endfunction
 
     task send_command(uart_transaction item);
-        `uvm_info("UART DRIVER", "Send comand", UVM_HIGH)
+        //`uvm_info("UART DRIVER", "Send comand", UVM_HIGH)
+
+        bfm.boot_mode = 0; // garantir que o soc não está no modo de bootload
+
         send_bit(1'b0); // bit de START (sempre 0)
 
         // enviar dados
         for(int i = 0; i < UART_DATA_BITS; i = i + 1)
         begin
             send_bit(item.data_sent[i]);
+            //`uvm_info("UART DRIVER", $sformatf("Bit enviado: 0x%b", item.data_sent[i]), UVM_HIGH)
         end
         
         send_bit(1'b1); // bit de STOP (sempre 1)
