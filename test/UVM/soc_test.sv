@@ -22,7 +22,6 @@ class soc_base_test extends uvm_test;
     function void build_phase(uvm_phase phase);
         super.build_phase(phase);
         
-        // Create environment
         env = soc_env::type_id::create("env", this);
 
     endfunction
@@ -48,7 +47,6 @@ class soc_bootloader_test extends soc_base_test;
         phase.raise_objection(this);
         
         seq = bootloader_seq::type_id::create("seq");
-        `uvm_info("BOOTLOADER TEST", "Starting bootloader_sequence on sequencer...", UVM_LOW)
         seq.start(env.bootloader_agt.sequencer);
         
         #60ms;
@@ -72,7 +70,6 @@ class soc_uart_test extends soc_base_test;
         phase.raise_objection(this);
         
         seq = uart_seq::type_id::create("seq");
-        `uvm_info("UART TEST", "Starting uart_sequence on sequencer...", UVM_LOW)
         seq.start(env.uart_agt.sequencer);
         
         #10us;
@@ -80,35 +77,83 @@ class soc_uart_test extends soc_base_test;
     endtask
 endclass : soc_uart_test
 
-// // =============================================================================
-// // I2C Focused Test
-// // =============================================================================
-// class soc_i2c_test extends soc_base_test;
-//     `uvm_component_utils(soc_i2c_test)
+// =============================================================================
+// GPIO Focused Test
+// =============================================================================
+class soc_gpio_test extends soc_base_test;
+    `uvm_component_utils(soc_gpio_test)
     
-//     function new(string name = "soc_i2c_test", uvm_component parent = null);
-//         super.new(name, parent);
-//         `uvm_info("I2C TEST", "NEW", UVM_LOW)
-//     endfunction
+    function new(string name = "soc_gpio_test", uvm_component parent = null);
+        super.new(name, parent);
+    endfunction
     
-//     task run_phase(uvm_phase phase);
-//         i2c_slave_seq seq;
+    task run_phase(uvm_phase phase);
+        gpio_seq seq;
         
-//         `uvm_info("I2C TEST", "RUN: started", UVM_LOW);
-
-//         phase.raise_objection(this);
+        phase.raise_objection(this);
         
-//         seq = i2c_slave_seq::type_id::create("seq");
-//         `uvm_info("I2C TEST", "criou seqeunce", UVM_LOW);
+        seq = gpio_seq::type_id::create("seq");
+        seq.start(env.gpio_agt.sequencer);
+        
+        #50us;
+        phase.drop_objection(this);
+    endtask
+endclass : soc_gpio_test
 
-//         seq.start(env.i2c_agt.sequencer);
-//         `uvm_info("I2C TEST", "started", UVM_LOW);
-//         #5us;
-//         phase.drop_objection(this);
 
-//         `uvm_info("I2C TEST", "RUN: finished", UVM_LOW)
-//     endtask
-// endclass : soc_i2c_test
+// =============================================================================
+// SPI Focused Test
+// =============================================================================
+class soc_spi_test extends soc_base_test;
+    `uvm_component_utils(soc_spi_test)
+    
+    function new(string name = "soc_spi_test", uvm_component parent = null);
+        super.new(name, parent);
+    endfunction
+    
+    task run_phase(uvm_phase phase);
+        spi_seq seq;
+        
+        phase.raise_objection(this);
+        
+        seq = spi_seq::type_id::create("seq");
+        seq.start(env.spi_agt.sequencer);
+        
+        #10us;
+        phase.drop_objection(this);
+    endtask
+endclass : soc_spi_test
+
+
+// =============================================================================
+// I2C Focused Test
+// =============================================================================
+class soc_i2c_test extends soc_base_test;
+    `uvm_component_utils(soc_i2c_test)
+    
+    function new(string name = "soc_i2c_test", uvm_component parent = null);
+        super.new(name, parent);
+        `uvm_info("I2C TEST", "NEW", UVM_LOW)
+    endfunction
+    
+    task run_phase(uvm_phase phase);
+        i2c_seq seq;
+        
+        phase.raise_objection(this);
+        
+        seq = i2c_seq::type_id::create("seq");
+        seq.start(env.i2c_agt.sequencer);
+        
+        #50us;
+        phase.drop_objection(this);
+    endtask
+endclass : soc_i2c_test
+
+
+// =============================================================================
+// TIMER Test - Como não envia dados, não é necessário: consigo fazer uma seq sem enviar nada só para ver o funcionamento do Timer isolado?
+// =============================================================================
+
 
 // =============================================================================
 // COMPLETE Focused Test

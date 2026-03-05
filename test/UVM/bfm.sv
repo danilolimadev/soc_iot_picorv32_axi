@@ -36,15 +36,19 @@ interface soc_bfm;
     bit        i2c_sda_out;
     assign i2c_sda = i2c_sda_oe ? i2c_sda_out : 1'bz;
 
+    function automatic logic resolve(logic sig);
+        return (sig === 1'bz) ? 1'b1 : sig;
+    endfunction
+
     // task to generate clock signal
-    task generate_clock(input real freq = 100_000_000, bit clk_pol = 0, real delay = 0);
+    task generate_clock(input real period = 20, bit clk_pol = 0, real delay = 0);
         clk = ~clk_pol;
         #(delay);
 
         forever
 		begin
             clk = ~clk;
-            #(1.0 / (2.0 * freq) * 1e9);
+            #(period/2);
         end
 
     endtask : generate_clock

@@ -14,7 +14,6 @@ class bootloader_seq extends uvm_sequence #(bootloader_transaction);
 
     function new(string name = "bootloader_seq");
         super.new(name);
-        `uvm_info("BOOTLOADER SEQUENCE", "NEW", UVM_LOW)
     endfunction
 
     task body();
@@ -48,47 +47,100 @@ class bootloader_seq extends uvm_sequence #(bootloader_transaction);
 
 endclass : bootloader_seq
 
-// =============================================================================
-// I2C Sequence
-// =============================================================================
-class i2c_slave_seq extends uvm_sequence #(i2c_transaction);
-    `uvm_object_utils(i2c_slave_seq)
 
-    int unsigned max_transactions = 5;  // 0 = infinito
+// =============================================================================
+// UART Sequence
+// =============================================================================
+class uart_seq extends uvm_sequence #(uart_transaction);
+    `uvm_object_utils(uart_seq)
 
-    function new(string name = "i2c_slave_seq");
+
+    function new(string name = "uart_seq");
         super.new(name);
-        `uvm_info("I2C SEQUENCE", "NEW", UVM_LOW)
     endfunction
 
     task body();
-        i2c_transaction item;
-        int cnt = 0;
+        uart_transaction item;
+        commands cmd;
+
+        `uvm_info("UART SEQUENCE", $sformatf("Starting %0d random UART commands", $size(cmd)), UVM_LOW)
+        cmd = cmd.first();
+        do
+        begin
+            item = uart_transaction::type_id::create("item");
+
+            start_item(item);
+            item.data_sent = cmd;
+
+            finish_item(item);
+
+            #(10 * UART_BIT_CLKS * CLK_PERIOD);
+            
+            cmd = cmd.next();
+        end while (cmd != cmd.first());
+
+        #(10 * UART_BIT_CLKS * CLK_PERIOD);
+    endtask
+
+endclass : uart_seq
+
+
+// =============================================================================
+// GPIO Sequence
+// =============================================================================
+class gpio_seq extends uvm_sequence #(gpio_transaction);
+    `uvm_object_utils(gpio_seq)
+
+    function new(string name = "gpio_seq");
+        super.new(name);
+    endfunction
+
+    task body();
+        gpio_transaction item;
+
+        `uvm_info("GPIO SEQUENCE", "Starting random GPIO commands", UVM_LOW)
+        
+        item = gpio_transaction::type_id::create("item");
+
+        start_item(item);
+        assert(item.randomize());
+        finish_item(item);
+    endtask
+
+endclass : gpio_seq
+
+
+// =============================================================================
+// SPI Sequence
+// =============================================================================
+class spi_seq extends uvm_sequence #(spi_transaction);
+    `uvm_object_utils(spi_seq)
+
+    int unsigned max_transactions = 1;
+
+    function new(string name = "spi_seq");
+        super.new(name);
+    endfunction
+
+    task body();
+        spi_transaction item;
 
         if (starting_phase != null)
         begin
             starting_phase.raise_objection(this);
         end
 
-        `uvm_info("I2C SEQUENCE", "Receiving data via i2c", UVM_LOW)
+        `uvm_info("SPI SEQUENCE", $sformatf("Starting %0d random SPI commands", max_transactions), UVM_LOW)
 
-        repeat (max_transactions == 0 ? 1 : max_transactions)
+        repeat (max_transactions)
         begin
-            item = i2c_transaction::type_id::create("item");
+            item = spi_transaction::type_id::create("req");
 
-            `uvm_info("I2C SEQUENCE", $sformatf("Before starting item #%0d", cnt), UVM_MEDIUM)
-            // O sequencer entrega o item ao driver 
-            // nada precisa ser enviado pois somos passivos
             start_item(item);
-            `uvm_info("I2C SEQUENCE", $sformatf("Receiving data from SOC"), UVM_MEDIUM)
-            item.slave_addr = I2C_ADDRESS; // só pra registro, o driver já sabe que é esse endereço
+
+            assert(this.randomize());
+
             finish_item(item);
-
-            `uvm_info("I2C SEQUENCE", $sformatf("Transação slave concluída: %s", item.convert2string()), UVM_MEDIUM)
-
-            cnt++;
-            // if (max_transactions > 0 && cnt >= max_transactions)
-            //     break;
         end
 
         if (starting_phase != null)
@@ -97,59 +149,38 @@ class i2c_slave_seq extends uvm_sequence #(i2c_transaction);
         end
     endtask
 
-endclass : i2c_slave_seq
+endclass : spi_seq
+
 
 // =============================================================================
-// UART Sequence
+// I2C Sequence
 // =============================================================================
-class uart_seq extends uvm_sequence #(uart_transaction);
-    `uvm_object_utils(uart_seq)
+class i2c_seq extends uvm_sequence #(i2c_transaction);
+    `uvm_object_utils(i2c_seq)
 
-    int unsigned max_transactions = 5;
-
-    function new(string name = "uart_seq");
+    function new(string name = "i2c_seq");
         super.new(name);
-        `uvm_info("UART SEQUENCE", "NEW", UVM_LOW)
     endfunction
 
     task body();
-        uart_transaction item;
-        commands cmd;
+        i2c_transaction item;
 
-        `uvm_info("UART SEQUENCE", $sformatf("Starting %0d random UART commands", max_transactions), UVM_LOW)
-        //forever
-        //begin
-            // repeat (max_transactions)
-            // begin
-            //     `uvm_info("UART SEQUENCE", "Sending new UART command", UVM_MEDIUM)
-            //     item = uart_transaction::type_id::create("item");
+        `uvm_info("I2C SEQUENCE", "Starting random I2C commands", UVM_LOW)
+        
+        item = i2c_transaction::type_id::create("item");
 
-            //     start_item(item);
-            //     `uvm_info("UART SEQUENCE", "Starting new UART command", UVM_MEDIUM)
-            //     assert(item.randomize());
-            //     `uvm_info("UART SEQUENCE", $sformatf("Sending command: 0x%h", item.data_sent), UVM_MEDIUM)
-
-            //     finish_item(item);
-            // end
-        //end
-        cmd = cmd.first();
-        do
-        begin
-            `uvm_info("UART SEQUENCE", "Sending new UART command", UVM_MEDIUM)
-            item = uart_transaction::type_id::create("item");
-
-            start_item(item);
-            //assert(item.randomize());
-            item.data_sent = cmd;
-            `uvm_info("UART SEQUENCE", $sformatf("Sending command: 0x%h", item.data_sent), UVM_MEDIUM)
-
-            finish_item(item);
-            cmd = cmd.next();
-        end while (cmd != cmd.first());
-
+        start_item(item);
+        assert(item.randomize());
+        finish_item(item);
     endtask
 
-endclass : uart_seq
+endclass : i2c_seq
+
+
+// =============================================================================
+// TIMER Sequence - Como não envia dados, não é necessária
+// =============================================================================
+
 
 // =============================================================================
 // Virtual Sequences - Coordinate multiple protocol agents
@@ -160,7 +191,6 @@ class soc_virtual_seq extends uvm_sequence;
     
     function new(string name = "soc_virtual_base_seq");
         super.new(name);
-        `uvm_info("VIRTUAL SEQUENCE", "NEW", UVM_LOW)
     endfunction
     
     task body();
@@ -170,7 +200,7 @@ class soc_virtual_seq extends uvm_sequence;
         uvm_event ev_initial_msg_done = uvm_event_pool::get_global("ev_initial_msg_done");
         bit             timed_out;
 
-        `uvm_info("VIRTUAL SEQUENCE", "Iniciando testes", UVM_LOW)
+        `uvm_info("VIRTUAL SEQUENCE", "Starting tests", UVM_LOW)
         // Bootloader
         bootloader_sequence = bootloader_seq::type_id::create("bootloader_sequence");
         bootloader_sequence.start(p_sequencer.bootloader_seqr);  // bloqueia até terminar
@@ -178,12 +208,11 @@ class soc_virtual_seq extends uvm_sequence;
         timed_out = 0;
         fork
         begin
-            `uvm_info("VIRTUAL SEQUENCE", "esperando boot_done", UVM_NONE)
+            `uvm_info("VIRTUAL SEQUENCE", "Waiting boot_done", UVM_NONE)
             ev_boot_done.wait_ptrigger();
-            `uvm_info("VIRTUAL SEQUENCE", "boot_done recebido! Iniciando UART...", UVM_NONE)
+            `uvm_info("VIRTUAL SEQUENCE", "boot_done received! Receiving initial message via UART...", UVM_NONE)
             // esperar receber mensagem "SOC IOT PICORV32"
             ev_initial_msg_done.wait_ptrigger();
-            `uvm_info("VIRTUAL SEQUENCE", "terminou de ler a msg", UVM_MEDIUM)
         end
         begin
             #(200ms);
@@ -195,13 +224,12 @@ class soc_virtual_seq extends uvm_sequence;
 
         if (timed_out) return;
 
-        `uvm_info("VIRTUAL SEQUENCE", "Bootloader terminou - iniciando UART", UVM_LOW)
+        `uvm_info("VIRTUAL SEQUENCE", "Starting UART tests", UVM_LOW)
 
-        // Só após de Bootloader terminar, UART começa ────────────────
         uart_sequence = uart_seq::type_id::create("uart_sequence");
-        uart_sequence.start(p_sequencer.uart_seqr);  // bloqueia até terminar
+        uart_sequence.start(p_sequencer.uart_seqr);
 
-        `uvm_info("VIRTUAL SEQUENCE", "UART terminou - funcionamento completo", UVM_LOW)
+        `uvm_info("VIRTUAL SEQUENCE", "Tests finished", UVM_LOW)
     endtask
 endclass : soc_virtual_seq
 

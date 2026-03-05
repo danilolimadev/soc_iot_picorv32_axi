@@ -6,6 +6,7 @@ import uvm_pkg::*;
 `include "soc_macros.svh"
 `include "transaction.sv"
 
+
 // =============================================================================
 // BOOTLOADER Monitor
 // =============================================================================
@@ -21,26 +22,18 @@ class bootloader_monitor extends uvm_monitor;
         super.new(name, parent);
 
         ap = new("ap", this);
-
-        // Pega o evento do pool global (mesmo objeto em todo o ambiente)
         ev_boot_done = uvm_event_pool::get_global("ev_boot_done");
-
-        `uvm_info("BOOTLOADER MONITOR", "NEW", UVM_LOW)
     endfunction
     
     function void build_phase(uvm_phase phase);
         super.build_phase(phase);
         if(!uvm_config_db#(virtual soc_bfm)::get(this, "", "bfm", bfm))
             `uvm_warning("BOOTLOADER_MON", "Virtual interface `bfm` not found via uvm_config_db. Check config_db::set path.")
-
-        `uvm_info("BOOTLOADER MONITOR", "BUILD", UVM_LOW)
     endfunction
     
     task run_phase(uvm_phase phase);
         bootloader_transaction transaction;
         int cycle_count;
-
-        `uvm_info("BOOTLOADER MONITOR", "RUN: started", UVM_LOW);
         
         monitor_bootloader(cycle_count);
 
@@ -48,8 +41,6 @@ class bootloader_monitor extends uvm_monitor;
         transaction.clock_cycles = cycle_count;
 
         ap.write(transaction);
-
-        `uvm_info("BOOTLOADER MONITOR", $sformatf( "Boot DONE em %0d ciclos (%0t)", cycle_count, $time), UVM_MEDIUM)
     endtask
 
     task monitor_bootloader(output int cycle_count);
@@ -57,7 +48,6 @@ class bootloader_monitor extends uvm_monitor;
         
         @(posedge bfm.boot_mode); // Detecta início do boot
         counting = 0;
-        `uvm_info("BOOTLOADER MONITOR", "Boot iniciado - contando ciclos...", UVM_LOW)
 
         forever
         begin
@@ -68,7 +58,6 @@ class bootloader_monitor extends uvm_monitor;
             begin
                 cycle_count = counting;
                 ev_boot_done.trigger();
-                `uvm_info("BOOTLOADER MONITOR", $sformatf( "Boot DONE em %0d ciclos - trigou", cycle_count), UVM_LOW)
                 break;
             end
         end
@@ -76,136 +65,6 @@ class bootloader_monitor extends uvm_monitor;
 
 endclass : bootloader_monitor
 
-// =============================================================================
-// I2C Monitor
-// =============================================================================
-class i2c_monitor extends uvm_monitor;
-    `uvm_component_utils(i2c_monitor)
-    
-    virtual soc_bfm bfm;
-    uvm_analysis_port #(i2c_transaction) ap;
-    
-    function new(string name, uvm_component parent);
-        super.new(name, parent);
-        ap = new("ap", this);
-
-        `uvm_info("I2C MONITOR", "NEW", UVM_LOW)
-
-    endfunction
-    
-    function void build_phase(uvm_phase phase);
-        super.build_phase(phase);
-        if(!uvm_config_db#(virtual soc_bfm)::get(this, "", "bfm", bfm))
-            `uvm_warning("I2C_MON", "Virtual interface `bfm` not found via uvm_config_db. Check config_db::set path.")
-
-        `uvm_info("I2C MONITOR", "BUILD", UVM_LOW)
-
-    endfunction
-    
-    task run_phase(uvm_phase phase);
-        `uvm_info("I2C MONITOR", "RUN: started", UVM_LOW);
-        forever
-        begin            
-            i2c_transaction transaction;
-            transaction = i2c_transaction::type_id::create("transaction");
-
-            monitor_i2c_transaction(transaction); // pega os mdados da BFM
-
-            ap.write(transaction);
-        end
-
-        `uvm_info("I2C MONITOR", "RUN: finished", UVM_LOW)
-    endtask
-    
-    task decode_byte(bit [7:0] data_byte);
-        // decode 8 bits
-        for(int i = 7; i >= 0; i--)
-        begin
-            @(posedge bfm.i2c_scl);
-            data_byte[i] = bfm.i2c_sda;
-        end
-
-        // ack
-        @(posedge bfm.i2c_scl);
-        // reponder o ack
-    endtask
-
-    task detect_stop(output bit stop_flag);
-        forever
-        begin
-            @(posedge bfm.i2c_sda);
-            if (bfm.i2c_scl == 1'b1)
-                stop_flag = 1'b1;
-            else
-                stop_flag = 1'b0;
-        end
-    endtask
-
-    task monitor_i2c_transaction(i2c_transaction transaction);
-        bit [7:0] addr_byte;
-        bit [7:0] data_byte;
-        bit       stop_flag = 1'b0;
-
-        wait_for_start();
-
-        // Capture address byte
-        decode_byte(addr_byte);
-        
-        transaction.slave_addr = addr_byte[7:1];
-        transaction.rw = addr_byte[0];
-        
-        // Capture data bytes until STOP
-        while(!stop_flag)
-        begin
-            
-            fork
-                decode_byte(data_byte);
-                // colocar na transaco
-                detect_stop(stop_flag);
-            join_any
-            disable fork;
-
-            transaction.data_bytes = data_byte;
-        end
-        
-        `uvm_info(get_type_name(), $sformatf("Monitored I2C: Addr=0x%0h", 
-                  transaction.slave_addr), UVM_MEDIUM)
-    endtask
-
-    task wait_for_start();
-        bit start_detected = 0;   // flag compartilhada entre as threads
-        fork
-        begin
-            @(posedge bfm.i2c_scl);
-
-            // Aguarda SDA descer com SCL alto = START
-            forever
-            begin
-                @(negedge bfm.i2c_sda);
-                if (bfm.i2c_scl === 1'b1)
-                begin
-                    start_detected = 1;
-                    `uvm_info("I2C DRIVER", "START detectado da DUT", UVM_HIGH)
-                    break;
-                end
-            end
-        end
-
-        // Aguarda START_TIMEOUT unidades de tempo; se a DUT não gerar START nesse intervalo, a simulação é encerrada com uvm_fatal.
-        // begin
-        //     #(START_TIMEOUT);
-        //     if (!start_detected)
-        //     begin
-        //         `uvm_fatal("I2C DRIVER", $sformatf("TIMEOUT: DUT não gerou condição de START após %0t ps. ", START_TIMEOUT))
-        //     end
-        // end
-        join_any
-        
-        disable fork;
-
-    endtask
-
-endclass : i2c_monitor
 
 // =============================================================================
 // UART Monitor
@@ -226,22 +85,20 @@ class uart_monitor extends uvm_monitor;
         ap_tx = new("ap_tx", this);
 
         ev_initial_msg_done = uvm_event_pool::get_global("ev_initial_msg_done");
-
-        `uvm_info("UART MONITOR", "NEW", UVM_LOW)
     endfunction
     
     function void build_phase(uvm_phase phase);
         super.build_phase(phase);
         if(!uvm_config_db#(virtual soc_bfm)::get(this, "", "bfm", bfm))
             `uvm_warning("UART_MON", "Virtual interface `bfm` not found via uvm_config_db. Check config_db::set path.")
-
-        `uvm_info("UART MONITOR", "BUILD", UVM_LOW)
     endfunction
     
     task run_phase(uvm_phase phase);
         uart_transaction transaction_rx, transaction_tx;
         bit [UART_DATA_BITS-1:0] data_byte_rx, data_byte_tx;
         bit erro_rx, erro_tx, timed_out;
+
+        // TODO: REFACTOR TO GET INITIAL MESSAGE OR OTHER MESSAGES AT SAME TIME
 
         // Monitorar mensagem inicial
         repeat(INITIAL_MSG.len())
@@ -255,13 +112,11 @@ class uart_monitor extends uvm_monitor;
             ap_rx.write(transaction_rx);
         end
 
-        `uvm_info("UART MONITOR", "Recebeu msg", UVM_MEDIUM)
         ev_initial_msg_done.trigger();
         
         fork
             forever
             begin
-                `uvm_info("UART MONITOR", "Monitorando envio de msg", UVM_MEDIUM)
                 monitor_uart(1'b0, data_byte_tx, erro_tx); // UART enviando para DUT
 
                 transaction_tx = uart_transaction::type_id::create("transaction_tx");
@@ -269,13 +124,10 @@ class uart_monitor extends uvm_monitor;
                 transaction_tx.framing_error = erro_tx;
 
                 ap_tx.write(transaction_tx);
-                `uvm_info("UART MONITOR", $sformatf("Data sent to DUT=0x%02X", transaction_tx.data), UVM_MEDIUM)
-
             end
         
             forever
             begin
-                `uvm_info("UART MONITOR", "Monitorando recebimento de msg", UVM_MEDIUM)
                 monitor_uart(1'b1, data_byte_rx, erro_rx); // DUT enviando para UART
 
                 transaction_rx = uart_transaction::type_id::create("transaction_rx");
@@ -283,7 +135,7 @@ class uart_monitor extends uvm_monitor;
                 transaction_rx.framing_error = erro_rx;
 
                 ap_rx.write(transaction_rx);
-                `uvm_info("UART MONITOR", $sformatf("Data sent from DUT after command=0x%02X", transaction_rx.data), UVM_MEDIUM)
+                
             end
 
             begin
@@ -294,40 +146,28 @@ class uart_monitor extends uvm_monitor;
         join_any
         disable fork;
 
-        `uvm_info("UART MONITOR", "Saiu do fork", UVM_MEDIUM)
-
         if (timed_out) return;
-
-        `uvm_info("UART MONITOR", "RUN: finished", UVM_LOW)
     endtask
 
     task monitor_uart(bit tx_rx, output bit [UART_DATA_BITS-1:0] data_byte, output bit erro);
         detect_start(tx_rx);
-
-        // Recebe byte de dado
-        receive_data(tx_rx, data_byte);
-        
+        receive_data(tx_rx, data_byte);        
         detect_stop(tx_rx, erro);
-        `uvm_info("UART MONITOR", $sformatf("Data: 0x%h", data_byte), UVM_MEDIUM)
-        `uvm_info("UART MONITOR", $sformatf("Erro: %b", erro), UVM_MEDIUM)
     endtask
 
     task detect_start(bit tx_rx); // se 0, olhar tx, se 1, olhar rx
         if (!tx_rx)
         begin
             @(negedge bfm.uart_tx);
-            `uvm_info("UART MONITOR", "Detectou start no tx", UVM_LOW)
         end
         else
         begin
             @(negedge bfm.uart_rx);
-            `uvm_info("UART MONITOR", "Detectou start no rx", UVM_LOW)
         end
         #((UART_BIT_CLKS * CLK_PERIOD) / 2);
     endtask
 
     task detect_stop(bit tx_rx, output bit erro);
-        // verifica bit de STOP: deve ser 1
         #(UART_BIT_CLKS * CLK_PERIOD);
         if (!tx_rx)
             begin
@@ -335,7 +175,6 @@ class uart_monitor extends uvm_monitor;
                 begin
                     erro = 1'b1;
                 end
-                `uvm_info("UART MONITOR", $sformatf("Detected tx stop: %b", bfm.uart_tx), UVM_MEDIUM)
             end
             else
             begin
@@ -343,7 +182,6 @@ class uart_monitor extends uvm_monitor;
                 begin
                     erro = 1'b1;
                 end
-                `uvm_info("UART MONITOR", $sformatf("Detected rx stop: %b", bfm.uart_rx), UVM_MEDIUM)
             end
     endtask
 
@@ -355,15 +193,292 @@ class uart_monitor extends uvm_monitor;
             if (!tx_rx)
             begin
                 data[i] = bfm.uart_tx;
-                //`uvm_info("UART MONITOR", $sformatf("Bit sent to DUT #%d = 0x%b", i, bfm.uart_tx), UVM_MEDIUM)
             end
             else
             begin
                 data[i] = bfm.uart_rx;
-                //`uvm_info("UART MONITOR", $sformatf("Bit received from DUT = 0x%b", bfm.uart_rx), UVM_MEDIUM)
             end
         end
     endtask
+
 endclass : uart_monitor
+
+
+// =============================================================================
+// GPIO Monitor
+// =============================================================================
+class gpio_monitor extends uvm_monitor;
+    `uvm_component_utils(gpio_monitor)
+    
+    virtual soc_bfm bfm;
+    uvm_analysis_port #(gpio_transaction) ap;
+
+    function new(string name, uvm_component parent);
+        super.new(name, parent);
+
+        ap = new("ap", this);
+    endfunction
+    
+    function void build_phase(uvm_phase phase);
+        super.build_phase(phase);
+        if(!uvm_config_db#(virtual soc_bfm)::get(this, "", "bfm", bfm))
+            `uvm_warning("GPIO MONITOR", "Virtual interface `bfm` not found via uvm_config_db. Check config_db::set path.")
+    endfunction
+
+    task run_phase(uvm_phase phase);
+        gpio_transaction transaction;
+
+        monitor_gpio();
+    endtask
+
+    task monitor_gpio();
+        gpio_transaction transaction;
+
+        forever
+        begin
+            @(bfm.gpio_out)
+
+            transaction = gpio_transaction::type_id::create("transaction");
+            transaction.data = bfm.gpio_out;
+
+            ap.write(transaction);
+        end
+    endtask
+endclass : gpio_monitor
+
+
+// =============================================================================
+// SPI Monitor
+// =============================================================================
+class spi_monitor extends uvm_monitor;
+    `uvm_component_utils(spi_monitor)
+    
+    virtual soc_bfm bfm;
+
+    uvm_analysis_port #(spi_transaction) ap_mosi;
+    uvm_analysis_port #(spi_transaction) ap_miso;
+    
+    function new(string name, uvm_component parent);
+        super.new(name, parent);
+
+        ap_mosi = new("ap_mosi", this);
+        ap_miso = new("ap_miso", this);
+    endfunction
+    
+    function void build_phase(uvm_phase phase);
+        super.build_phase(phase);
+        if(!uvm_config_db#(virtual soc_bfm)::get(this, "", "bfm", bfm))
+            `uvm_warning("SPI MONITOR", "Virtual interface `bfm` not found via uvm_config_db. Check config_db::set path.")
+    endfunction
+    
+    task run_phase(uvm_phase phase);
+        spi_transaction transaction_mosi, transaction_miso;
+        bit [SPI_DATA_BITS-1:0] data_byte_mosi, data_byte_miso;
+        string msg_received_spi = "";
+
+        forever
+        begin
+            monitor_spi(data_byte_mosi, data_byte_miso);
+
+            if (data_byte_mosi != 8'h0)
+            begin
+                msg_received_spi = {msg_received_spi, string'(data_byte_mosi)};
+            end
+
+            if (msg_received_spi.len() >= MSG_TO_SPI.len())
+            begin
+                transaction_mosi = spi_transaction::type_id::create("transaction_mosi");
+                transaction_mosi.msg_received = msg_received_spi;
+                ap_mosi.write(transaction_mosi);
+
+                msg_received_spi = "";
+            end
+
+            if (data_byte_miso != 8'h0)
+            begin
+                transaction_miso = spi_transaction::type_id::create("transaction_miso");
+                transaction_miso.data = data_byte_miso;
+                ap_miso.write(transaction_miso);
+            end
+        end
+    endtask
+
+
+    task monitor_spi(output bit [SPI_DATA_BITS-1:0] data_byte_mosi, data_byte_miso);
+
+        wait_for_start();
+        decode_byte(data_byte_mosi, data_byte_miso);
+        wait_for_stop();
+
+    endtask
+
+    task decode_byte(output bit [SPI_DATA_BITS-1:0] data_byte_mosi, data_byte_miso);
+        data_byte_mosi[SPI_DATA_BITS-1] = bfm.spi_mosi;
+        data_byte_miso[SPI_DATA_BITS-1] = bfm.spi_miso;
+
+        for(int i = SPI_DATA_BITS-2; i >= 0; i--)
+        begin
+            @(negedge bfm.spi_sck); // pega cada bit restante na subida de sck
+            begin
+                data_byte_mosi[i] = bfm.spi_mosi;
+            end
+            @(posedge bfm.spi_sck); 
+            begin
+                data_byte_miso[i] = bfm.spi_miso;
+            end
+        end
+    endtask
+
+    task wait_for_start();
+        @(negedge bfm.spi_cs);
+    endtask
+
+    task wait_for_stop();
+         @(posedge bfm.spi_cs);
+    endtask
+
+endclass : spi_monitor
+
+
+// =============================================================================
+// I2C Monitor
+// =============================================================================
+class i2c_monitor extends uvm_monitor;
+    `uvm_component_utils(i2c_monitor)
+    
+    virtual soc_bfm bfm;
+    uvm_analysis_port #(i2c_transaction) ap;
+    
+    function new(string name, uvm_component parent);
+        super.new(name, parent);
+        ap = new("ap", this);
+    endfunction
+    
+    function void build_phase(uvm_phase phase);
+        super.build_phase(phase);
+        if(!uvm_config_db#(virtual soc_bfm)::get(this, "", "bfm", bfm))
+            `uvm_warning("I2C_MON", "Virtual interface `bfm` not found via uvm_config_db. Check config_db::set path.")
+    endfunction
+    
+    task run_phase(uvm_phase phase);
+        bit [I2C_DATA_BITS-1:0] addr_byte;
+        bit [I2C_DATA_BITS-1:0] data_byte;
+        i2c_transaction transaction;
+
+        forever
+        begin
+            monitor_read_i2c(addr_byte, data_byte);
+
+            transaction = i2c_transaction::type_id::create("transaction");
+            transaction.data = data_byte;
+            transaction.slave_addr = addr_byte;
+            ap.write(transaction);
+
+            // TODO: IMPLEMENT WRITE I2C
+        end
+    endtask
+    
+    task monitor_read_i2c(output bit [I2C_DATA_BITS-1:0] addr_byte, data_byte);
+        bit       stop_flag = 1'b0;
+
+        wait_for_start();
+        decode_byte(addr_byte);
+        decode_byte(data_byte);
+        detect_stop();
+    endtask
+
+    task decode_byte(output bit [I2C_DATA_BITS-1:0] data_byte);
+        int count = I2C_DATA_BITS-1;
+
+        while (count >=0)
+        begin
+            @(bfm.i2c_scl);
+            if (bfm.resolve(bfm.i2c_scl) === 1'b1)
+            begin
+                data_byte[count] = bfm.resolve(bfm.i2c_sda);
+                count--;
+            end
+        end
+
+        wait_ack();
+    endtask
+
+    task wait_ack();
+        @(negedge bfm.i2c_scl);
+
+        @(bfm.i2c_scl);
+        if (bfm.resolve(bfm.i2c_scl) === 1'b1)
+        begin
+            @(negedge bfm.i2c_scl);
+        end
+    endtask
+
+    task detect_stop();
+        forever
+        begin
+            @(bfm.i2c_sda);
+            if (bfm.resolve(bfm.i2c_sda) === 1'b1)
+            begin
+                if (bfm.i2c_scl !== 1'b0)
+                begin
+                    break;
+                end
+            end
+        end
+    endtask
+
+    task wait_for_start();
+        forever
+        begin
+            @(negedge bfm.i2c_sda);
+            if (bfm.resolve(bfm.i2c_scl) === 1'b1)
+            begin
+                break;
+            end
+        end
+    endtask
+
+endclass : i2c_monitor
+
+
+// =============================================================================
+// TIMER Monitor
+// =============================================================================
+class timer_monitor extends uvm_monitor;
+    `uvm_component_utils(timer_monitor)
+    
+    virtual soc_bfm bfm;
+    uvm_analysis_port #(timer_transaction) ap;
+
+    function new(string name, uvm_component parent);
+        super.new(name, parent);
+
+        ap = new("ap", this);
+    endfunction
+    
+    function void build_phase(uvm_phase phase);
+        super.build_phase(phase);
+        if(!uvm_config_db#(virtual soc_bfm)::get(this, "", "bfm", bfm))
+            `uvm_warning("TIMER MONITOR", "Virtual interface `bfm` not found via uvm_config_db. Check config_db::set path.")
+    endfunction
+
+    task run_phase(uvm_phase phase);
+        monitor_timer();
+    endtask
+
+    task monitor_timer();
+        timer_transaction transaction;
+
+        forever
+        begin
+            @(posedge bfm.timer_irq)
+
+            transaction = timer_transaction::type_id::create("transaction");
+            transaction.irq = bfm.timer_irq;
+
+            ap.write(transaction);
+        end
+    endtask
+endclass : timer_monitor
 
 `endif // SOC_MONITOR_SV

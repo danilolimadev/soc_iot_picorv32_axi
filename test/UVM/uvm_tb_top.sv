@@ -44,27 +44,9 @@ module uvm_tb_top;
     begin
         fork
         bfm.uart_tx = 1; // garantir que inicialmente está em 1
-        bfm.generate_clock(CLK_FREQ);
+        bfm.generate_clock(CLK_PERIOD);
         bfm.reset_pulse(0, 5, "Sync", 1);
         join_none
     end
-
-    // initial // analisando que sinais estão na DUT
-    // begin
-    //     /*
-    //     clk: OK
-    //     resetn: OK - ativo por 1 ciclo de clock
-    //     i2c_sda:
-    //     i2c_scl: nada ainda
-    //     */
-    //     bit count = 0;
-    //     while(count < 100)
-    //     begin
-    //         @(posedge bfm.clk);
-    //         count++;
-
-    //         `uvm_info("mostrando bfm", $sformatf("i2c_scl = %b", bfm.i2c_scl), UVM_MEDIUM);
-    //     end
-    // end
     
 endmodule : uvm_tb_top
