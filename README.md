@@ -199,12 +199,13 @@ Durante essa etapa foram coletadas métricas importantes:
 Esses dados foram fundamentais para o planejamento físico do SoC. Cada macro gera um csv com o resumo das metricas [picorv32](metrics_pico.csv), [axi_ram](metrics_ram.csv) e [axi_peripherals](metrics_axi.csv). 
 
 Tabela de resultados
-| design_name       | total_runtime | DIEAREA_mm² | CellPer_mm² | wns  | AND  | DFF | NAND | NOR | OR   | XOR | XNOR | MUX  | Fmax (MHz) |
-|--------------------|--------------|-------------|-------------|------|------|-----|------|-----|------|-----|------|------|------------|
-| picorv32           | 0h20m11s     | 0.25        | 44,716      | 1.57 | 405  | 91  | 226  | 171 | 1045 | 388 | 113  | 2709 | 66.67      |
-| axi_peripherals    | 5h29m13s     | 0.872       | 53,779      | 3.33 | 111  | 85  | 193  | 71  | 855  | 216 | 59   | 8330 | 100.00     |
-| axi_ram            | 1h18m40s     | 0.827       | 53,804      | 5.60 | 6    | 0   | 4    | 3   | 307  | 0   | 0    | 8212 | 100.00     |
-| soc_top            | 0h31m10s     | 4.84        | 35.12       | 0.00 | 0    | 0   | 0    | 0   | 0    | 0   | 0    | 0    | 50.00      |
+| design_name     | total_runtime | DIEAREA_mm² | CellPer_mm² | wns | AND | DFF | NAND | NOR | OR  | XOR | XNOR | MUX  | Fmax (MHz) |
+|-----------------|--------------|-------------|-------------|-----|-----|-----|------|-----|-----|-----|------|------|------------|
+| picorv32        | 0h20m11s     | 0.25        | 44,716      | 1.57| 405 | 91  | 226  | 171 |1045 |388  |113   |2709 | 66.67      |
+| axi_peripherals | 0h6m35s      | 0.0795      | 27,788      | 0.00| 78  | 15  | 96   | 44  |426  |97   |19    |170  | 286.5      |
+| axi_ram         | 1h18m40s     | 0.827       | 53,804      | 5.60| 6   | 0   | 4    | 3   |307  |0    |0     |8212 | 100.00     |
+| axi_rom         | 1h4m8s       | 0.8596      | 51,962      | 0.00| 41  | 4   | 40   | 11  |395  |121  |7     |8160 | 206.6      |
+| soc_top         | 0h36m37s     | 4.84        | 63.63       | 0.00| 2   | 0   | 15   | 1   |20   |17   |14    |64   | 185.9      |
 
 *O consumo global de todo sistema foi aproximadamente 120mW.
 
@@ -237,7 +238,7 @@ Essa organização foi definida com base:
 - Na otimização das interconexões
 
 Vista renderizada com a ferramenta Klayout
-<img width="854" height="713" alt="image" src="https://github.com/user-attachments/assets/1f0c6895-efce-4257-ab23-c0b51298ab20" />
+<img width="794" height="736" alt="foorplain" src="https://github.com/user-attachments/assets/628d31c8-7f2d-4dd0-a467-3e3575c92261" />
 
 ---
 
