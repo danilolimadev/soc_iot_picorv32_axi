@@ -95,23 +95,31 @@ A organização do projeto foi planejada para permitir modularidade, reutilizaç
 
 ```
 openlane/designs/
-├── picorv32_macro/        # Macro 1: Núcleo RISC-V
-├── axi_ram/               # Macro 2: Memória AXI
-│   ├── src/
-│   │   └── axi_ram.v
-│   └── config.json
-├── axi_peripherals/       # Macro 3: Interconnect + Periféricos
-│   ├── src/
-│   │   ├── axi_interconnect.v
-│   │   ├── axi_uart.v
-│   │   ├── boot_manager.v
-│   │   └── ...
-│   └── config.json
-└── soc_top/               # Top Level do SoC
-    ├── macros/            # Arquivos LEF, GDS, LIB, CFG e CDC das macros
-    ├── src/
-    │   └── soc_top.v
-    └── config.json
+            ├── picorv32_macro/        # Macro 1: Núcleo RISC-V (PicoRV32 CPU)
+            │
+            ├── axi_rom/               # Macro 2: ROM AXI (boot / firmware storage)
+            │   ├── src/
+            │   │   └── axi_rom.v
+            │   └── config.json
+            │
+            ├── axi_ram/               # Macro 3: Memória RAM AXI
+            │   ├── src/
+            │   │   └── axi_ram.v
+            │   └── config.json
+            │
+            ├── axi_peripherals/       # Macro 4: Interconnect + Periféricos
+            │   ├── src/
+            │   │   ├── axi_interconnect.v
+            │   │   ├── axi_uart.v
+            │   │   ├── boot_manager.v
+            │   │   └── ...
+            │   └── config.json
+            │
+            └── soc_top/               # Top Level do SoC (macro integration)
+                ├── macros/            # LEF, GDS, LIB e configs das macros
+                ├── src/
+                │   └── soc_top.v
+                └── config.json
 ```
 
 ---
